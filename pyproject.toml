@@ -1,0 +1,46 @@
+[tool.poetry]
+name = "sparkdantic"
+version = "0.1.0"
+description = "A pydantic -> spark schema library"
+authors = ["Mitchell Lisle <m.lisle90@gmail.com>"]
+readme = "README.md"
+packages = [{include = "sparkdantic", from = "src"}]
+
+[tool.poetry.dependencies]
+python = "^3.8.1"
+pydantic = "^2.0.3"
+pyspark = "^3.4.1"
+
+
+[tool.poetry.group.dev.dependencies]
+bumpversion = "^0.6.0"
+twine = "^4.0.2"
+flake8 = "^6.0.0"
+dlint = "^0.14.0"
+mypy = "^1.1.1"
+pre-commit = "^3.2.1"
+setuptools = "^67.6.0"
+flake8-bugbear = "^23.3.23"
+pep8-naming = "^0.13.3"
+
+
+[tool.poetry.group.docs.dependencies]
+mkdocs = "^1.4.2"
+mkdocs-material = "^9.1.4"
+mkdocs-gen-files = "^0.4.0"
+mkdocs-literate-nav = "^0.6.0"
+mkdocstrings = {extras = ["python"], version = "^0.20.0"}
+mkautodoc = "^0.2.0"
+
+
+[tool.poetry.group.test.dependencies]
+pytest = "^7.2.2"
+pytest-dotenv = "^0.5.2"
+pytest-cov = "^4.0.0"
+hypothesis = "^6.82.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+

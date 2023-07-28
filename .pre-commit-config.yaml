@@ -1,0 +1,45 @@
+repos:
+  -   repo: https://github.com/psf/black.git
+      rev: 22.6.0
+      hooks:
+      - id: black
+        args: [--line-length=100, --skip-string-normalization]
+  -   repo: https://github.com/pre-commit/pre-commit-hooks
+      rev: v3.4.0
+      hooks:
+      - id: double-quote-string-fixer
+      - id: check-json
+      - id: check-ast
+      - id: check-yaml
+        args: ['--unsafe']
+      - id: detect-private-key
+  -   repo: https://github.com/asottile/pyupgrade
+      rev: v2.13.0
+      hooks:
+        - id: pyupgrade
+  -   repo: https://github.com/pre-commit/mirrors-isort
+      rev: v5.8.0
+      hooks:
+        - id: isort
+  -   repo: https://github.com/pre-commit/mirrors-mypy
+      rev: v0.982
+      hooks:
+      - id: mypy
+        args: [--follow-imports=silent, --ignore-missing-imports, --exclude="src/yessql/__init__.py"]
+        exclude: "tests/.+"
+  - repo: local
+    hooks:
+      - id: tests
+        name: run tests
+        entry: make test-cov
+        language: python
+        pass_filenames: false
+        stages:
+          - commit
+      - id: commit-coverage
+        name: commit coverage file after tests have been successful
+        entry: make commit-cov
+        language: python
+        pass_filenames: false
+        stages:
+          - commit

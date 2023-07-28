@@ -1,0 +1,18 @@
+version: '3'
+
+services:
+  test:
+    build:
+      context: ../
+      dockerfile: docker/Dockerfile
+      target: test
+    env_file:
+      - ../tests/.tests.env
+
+  serve:
+    build:
+      context: ../
+      dockerfile: docker/Dockerfile
+      target: serve
+    volumes:
+      - ../:/source
