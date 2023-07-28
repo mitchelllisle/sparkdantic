@@ -19,17 +19,17 @@ flake8 = "^6.0.0"
 dlint = "^0.14.0"
 mypy = "^1.1.1"
 pre-commit = "^3.2.1"
-setuptools = "^67.6.0"
+setuptools = "^68.0.0"
 flake8-bugbear = "^23.3.23"
 pep8-naming = "^0.13.3"
 
 
 [tool.poetry.group.docs.dependencies]
 mkdocs = "^1.4.2"
-mkdocs-material = "^9.1.4"
-mkdocs-gen-files = "^0.4.0"
+mkdocs-material = "^9.1.21"
+mkdocs-gen-files = "^0.5.0"
 mkdocs-literate-nav = "^0.6.0"
-mkdocstrings = {extras = ["python"], version = "^0.20.0"}
+mkdocstrings = {extras = ["python"], version = "^0.22.0"}
 mkautodoc = "^0.2.0"
 
 
