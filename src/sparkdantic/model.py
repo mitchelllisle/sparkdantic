@@ -22,7 +22,7 @@ from pyspark.sql.types import (
     TimestampType,
 )
 
-if sys.version_info > (3, 8):
+if sys.version_info > (3, 10):
     from types import UnionType
 else:
     UnionType = Union
