@@ -42,3 +42,13 @@ You can generate a PySpark schema from the model fields using the `spark_schema(
 my_model = MyModel()
 spark_schema = my_model.spark_schema()
 ```
+
+Providers this schema:
+
+```python
+StructType([
+    StructField('name', StringType(), True),
+    StructField('age', IntegerType(), True),
+    StructField('hobbies', ArrayType(StringType(), False), True)
+])
+```

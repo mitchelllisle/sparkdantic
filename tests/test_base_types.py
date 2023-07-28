@@ -51,15 +51,15 @@ raw_values_strategy = st.fixed_dictionaries(
 def test_raw_values(data):
     expected_schema = StructType(
         [
-            StructField('a', IntegerType(), True),
-            StructField('b', DoubleType(), True),
-            StructField('c', StringType(), True),
-            StructField('d', BooleanType(), True),
-            StructField('e', BinaryType(), True),
-            StructField('f', DecimalType(10, 0), True),
-            StructField('y', DateType(), True),
-            StructField('cc', TimestampType(), True),
-            StructField('gg', DayTimeIntervalType(0, 3), True),
+            StructField('a', IntegerType(), False),
+            StructField('b', DoubleType(), False),
+            StructField('c', StringType(), False),
+            StructField('d', BooleanType(), False),
+            StructField('e', BinaryType(), False),
+            StructField('f', DecimalType(10, 0), False),
+            StructField('y', DateType(), False),
+            StructField('cc', TimestampType(), False),
+            StructField('gg', DayTimeIntervalType(0, 3), False),
         ]
     )
     user = RawValuesModel(**data)

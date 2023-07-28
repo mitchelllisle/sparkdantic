@@ -63,19 +63,20 @@ dict_values_strategy = st.fixed_dictionaries(
 def test_dict_values(data):
     expected_schema = StructType(
         [
-            StructField('s', MapType(IntegerType(), IntegerType(), False), True),
-            StructField('t', MapType(DoubleType(), DoubleType(), False), True),
-            StructField('u', MapType(StringType(), StringType(), False), True),
-            StructField('v', MapType(BooleanType(), BooleanType(), False), True),
-            StructField('w', MapType(BinaryType(), BinaryType(), False), True),
-            StructField('x', MapType(DecimalType(10, 0), DecimalType(10, 0), False), True),
-            StructField('bb', MapType(DateType(), DateType(), False), True),
-            StructField('ff', MapType(TimestampType(), TimestampType(), False), True),
+            StructField('s', MapType(IntegerType(), IntegerType(), False), False),
+            StructField('t', MapType(DoubleType(), DoubleType(), False), False),
+            StructField('u', MapType(StringType(), StringType(), False), False),
+            StructField('v', MapType(BooleanType(), BooleanType(), False), False),
+            StructField('w', MapType(BinaryType(), BinaryType(), False), False),
+            StructField('x', MapType(DecimalType(10, 0), DecimalType(10, 0), False), False),
+            StructField('bb', MapType(DateType(), DateType(), False), False),
+            StructField('ff', MapType(TimestampType(), TimestampType(), False), False),
             StructField(
-                'jj', MapType(DayTimeIntervalType(0, 3), DayTimeIntervalType(0, 3), False), True
+                'jj', MapType(DayTimeIntervalType(0, 3), DayTimeIntervalType(0, 3), False), False
             ),
         ]
     )
+
     user = DictValuesModel(**data)
     generated_schema = user.spark_schema()
     assert generated_schema == expected_schema
