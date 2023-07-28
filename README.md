@@ -43,7 +43,7 @@ my_model = MyModel()
 spark_schema = my_model.spark_schema()
 ```
 
-Providers this schema:
+Provides this schema:
 
 ```python
 StructType([
