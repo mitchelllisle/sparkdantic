@@ -29,7 +29,7 @@ mkdocs = "^1.4.2"
 mkdocs-material = "^9.1.4"
 mkdocs-gen-files = "^0.5.0"
 mkdocs-literate-nav = "^0.6.0"
-mkdocstrings = {extras = ["python"], version = "^0.20.0"}
+mkdocstrings = {extras = ["python"], version = "^0.22.0"}
 mkautodoc = "^0.2.0"
 
 
