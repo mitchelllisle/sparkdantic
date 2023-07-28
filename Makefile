@@ -29,6 +29,7 @@ clean-test: ## remove test and coverage artifacts
 	rm -fr htmlcov/
 	rm -fr .pytest_cache
 	rm -fr .hypothesis
+	rm -fr .mypy_cache
 
 
 test: ## run tests (and coverage if configured in setup.cfg) with the default Python

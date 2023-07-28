@@ -55,15 +55,15 @@ list_values_strategy = st.fixed_dictionaries(
 def test_list_values(data):
     expected_schema = StructType(
         [
-            StructField('m', ArrayType(IntegerType(), False), True),
-            StructField('n', ArrayType(DoubleType(), False), True),
-            StructField('o', ArrayType(StringType(), False), True),
-            StructField('p', ArrayType(BooleanType(), False), True),
-            StructField('q', ArrayType(BinaryType(), False), True),
-            StructField('r', ArrayType(DecimalType(10, 0), False), True),
-            StructField('aa', ArrayType(DateType(), False), True),
-            StructField('ee', ArrayType(TimestampType(), False), True),
-            StructField('ii', ArrayType(DayTimeIntervalType(0, 3), False), True),
+            StructField('m', ArrayType(IntegerType(), False), False),
+            StructField('n', ArrayType(DoubleType(), False), False),
+            StructField('o', ArrayType(StringType(), False), False),
+            StructField('p', ArrayType(BooleanType(), False), False),
+            StructField('q', ArrayType(BinaryType(), False), False),
+            StructField('r', ArrayType(DecimalType(10, 0), False), False),
+            StructField('aa', ArrayType(DateType(), False), False),
+            StructField('ee', ArrayType(TimestampType(), False), False),
+            StructField('ii', ArrayType(DayTimeIntervalType(0, 3), False), False),
         ]
     )
     user = ListValuesModel(**data)

@@ -1,3 +1,4 @@
+import sys
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 from types import MappingProxyType
@@ -20,6 +21,11 @@ from pyspark.sql.types import (
     StructType,
     TimestampType,
 )
+
+if sys.version_info > (3, 10):
+    from types import UnionType
+else:
+    UnionType = Union
 
 type_map = MappingProxyType(
     {
@@ -56,12 +62,12 @@ class SparkModel(BaseModel):
         Returns:
             StructType: The generated PySpark schema.
         """
-        return StructType(
-            [
-                StructField(k, self._type_to_spark(v.annotation))
-                for k, v in self.model_fields.items()
-            ]
-        )
+        fields = []
+        for k, v in self.model_fields.items():
+            t, nullable = self._type_to_spark(v.annotation)
+            _struct_field = StructField(k, t, nullable)
+            fields.append(_struct_field)
+        return StructType(fields)
 
     @staticmethod
     def _is_nullable(t: Type) -> Tuple[bool, Type]:
@@ -73,7 +79,7 @@ class SparkModel(BaseModel):
         Returns:
             Tuple[bool, Type]: A tuple containing a boolean indicating nullability and the original type.
         """
-        if get_origin(t) is Union:
+        if get_origin(t) in (Union, UnionType):
             type_args = get_args(t)
             if any([get_origin(arg) is None for arg in type_args]):
                 t = type_args[0]
@@ -92,10 +98,10 @@ class SparkModel(BaseModel):
             DataType: The corresponding PySpark data type.
         """
         spark_type = type_map[t]
-        spark_type.nullable = True if nullable else False
+        spark_type.nullable = nullable
         return spark_type()
 
-    def _type_to_spark(self, t: Type) -> DataType:
+    def _type_to_spark(self, t: Type) -> Tuple[DataType, bool]:
         """Converts a given Python type to a corresponding PySpark data type.
 
         Args:
@@ -114,15 +120,15 @@ class SparkModel(BaseModel):
 
         if origin is list:
             array_type = self._get_spark_type(args[0], nullable)
-            return ArrayType(array_type, nullable)
+            return ArrayType(array_type, nullable), nullable
         elif origin is dict:
-            key_type = self._type_to_spark(args[0])
-            value_type = self._type_to_spark(args[1])
-            return MapType(key_type, value_type, nullable)
+            key_type, _ = self._type_to_spark(args[0])
+            value_type, _ = self._type_to_spark(args[1])
+            return MapType(key_type, value_type, nullable), nullable
 
         try:
             spark_type = type_map[t]
-            spark_type.nullable = True if nullable else False
-            return spark_type()
+            spark_type.nullable = nullable
+            return spark_type(), nullable
         except KeyError:
             raise TypeError(f'Type {t} not recognized')
