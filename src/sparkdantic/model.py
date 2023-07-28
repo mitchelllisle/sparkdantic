@@ -1,38 +1,41 @@
-from pydantic import BaseModel, ConfigDict
-from typing import Union, Type, Tuple, get_origin, get_args
+from datetime import date, datetime, timedelta
+from decimal import Decimal
 from types import MappingProxyType
+from typing import Tuple, Type, Union, get_args, get_origin
+
+from pydantic import BaseModel, ConfigDict
 from pyspark.sql.types import (
-    IntegerType,
-    DoubleType,
-    StringType,
+    ArrayType,
     BinaryType,
     BooleanType,
-    ArrayType,
-    MapType,
-    TimestampType,
-    DecimalType,
-    DayTimeIntervalType,
+    DataType,
     DateType,
-    StructType,
+    DayTimeIntervalType,
+    DecimalType,
+    DoubleType,
+    IntegerType,
+    MapType,
+    StringType,
     StructField,
-    DataType
+    StructType,
+    TimestampType,
 )
-from datetime import datetime, date, timedelta
-from decimal import Decimal
 
-type_map = MappingProxyType({
-    int: IntegerType,
-    float: DoubleType,
-    str: StringType,
-    bool: BooleanType,
-    bytes: BinaryType,
-    list: ArrayType,
-    dict: MapType,
-    datetime: TimestampType,
-    date: DateType,
-    Decimal: DecimalType,
-    timedelta: DayTimeIntervalType,
-})
+type_map = MappingProxyType(
+    {
+        int: IntegerType,
+        float: DoubleType,
+        str: StringType,
+        bool: BooleanType,
+        bytes: BinaryType,
+        list: ArrayType,
+        dict: MapType,
+        datetime: TimestampType,
+        date: DateType,
+        Decimal: DecimalType,
+        timedelta: DayTimeIntervalType,
+    }
+)
 
 
 class SparkModel(BaseModel):
@@ -44,6 +47,7 @@ class SparkModel(BaseModel):
         _get_spark_type: Returns the corresponding PySpark data type for a given Python type, considering nullability.
         _type_to_spark: Converts a given Python type to a corresponding PySpark data type.
     """
+
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     def spark_schema(self) -> StructType:
@@ -52,7 +56,12 @@ class SparkModel(BaseModel):
         Returns:
             StructType: The generated PySpark schema.
         """
-        return StructType([StructField(k, self._type_to_spark(v.annotation)) for k, v in self.model_fields.items()])
+        return StructType(
+            [
+                StructField(k, self._type_to_spark(v.annotation))
+                for k, v in self.model_fields.items()
+            ]
+        )
 
     @staticmethod
     def _is_nullable(t: Type) -> Tuple[bool, Type]:
@@ -116,4 +125,4 @@ class SparkModel(BaseModel):
             spark_type.nullable = True if nullable else False
             return spark_type()
         except KeyError:
-            raise TypeError(f"Type {t} not recognized")
+            raise TypeError(f'Type {t} not recognized')

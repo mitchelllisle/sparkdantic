@@ -1,5 +1,6 @@
-from sparkdantic.model import SparkModel
 import pytest
+
+from sparkdantic.model import SparkModel
 
 
 class BadListType(SparkModel):
@@ -11,7 +12,7 @@ class NewType:
 
 
 class BadType(SparkModel):
-    t:  NewType
+    t: NewType
 
 
 def test_value_error():
