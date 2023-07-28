@@ -1,6 +1,7 @@
+import sys
 from datetime import date, datetime, timedelta
 from decimal import Decimal
-from types import MappingProxyType, UnionType
+from types import MappingProxyType
 from typing import Tuple, Type, Union, get_args, get_origin
 
 from pydantic import BaseModel, ConfigDict
@@ -20,6 +21,11 @@ from pyspark.sql.types import (
     StructType,
     TimestampType,
 )
+
+if sys.version_info > (3, 8):
+    from types import UnionType
+else:
+    UnionType = Union
 
 type_map = MappingProxyType(
     {
