@@ -26,7 +26,7 @@ from pyspark.sql.types import (
 if sys.version_info > (3, 10):
     from types import UnionType
 else:
-    UnionType = Union
+    UnionType = Union  # pragma: no cover
 
 type_map = MappingProxyType(
     {
