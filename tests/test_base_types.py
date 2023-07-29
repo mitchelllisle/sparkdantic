@@ -63,5 +63,5 @@ def test_raw_values(data):
         ]
     )
     user = RawValuesModel(**data)
-    generated_schema = user.spark_schema()
+    generated_schema = user.model_spark_schema()
     assert generated_schema == expected_schema

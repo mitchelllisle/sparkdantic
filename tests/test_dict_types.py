@@ -78,5 +78,5 @@ def test_dict_values(data):
     )
 
     user = DictValuesModel(**data)
-    generated_schema = user.spark_schema()
+    generated_schema = user.model_spark_schema()
     assert generated_schema == expected_schema

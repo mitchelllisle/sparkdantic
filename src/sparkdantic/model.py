@@ -56,7 +56,7 @@ class SparkModel(BaseModel):
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
-    def spark_schema(self) -> StructType:
+    def model_spark_schema(self) -> StructType:
         """Generates a PySpark schema from the model fields.
 
         Returns:
