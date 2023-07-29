@@ -49,7 +49,7 @@ class SparkModel(BaseModel):
     """Spark Model representing a Pydantic BaseModel with additional methods to convert it to a PySpark schema.
 
     Methods:
-        spark_schema: Generates a PySpark schema from the model fields.
+        model_spark_schema: Generates a PySpark schema from the model fields.
         _is_nullable: Determines if a type is nullable and returns the type without the Union.
         _get_spark_type: Returns the corresponding PySpark data type for a given Python type, considering nullability.
         _type_to_spark: Converts a given Python type to a corresponding PySpark data type.
