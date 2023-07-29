@@ -1,5 +1,7 @@
 ##  SparkDantic
 
+[![PyPI version](https://badge.fury.io/py/sparkdantic.svg)](https://badge.fury.io/py/sparkdantic)
+
 > 1️⃣ version: 0.1.0
 
 > ✍️ author: Mitchell Lisle

@@ -1,3 +1,4 @@
+import inspect
 import sys
 from datetime import date, datetime, timedelta
 from decimal import Decimal
@@ -25,7 +26,7 @@ from pyspark.sql.types import (
 if sys.version_info > (3, 10):
     from types import UnionType
 else:
-    UnionType = Union
+    UnionType = Union  # pragma: no cover
 
 type_map = MappingProxyType(
     {
@@ -48,7 +49,7 @@ class SparkModel(BaseModel):
     """Spark Model representing a Pydantic BaseModel with additional methods to convert it to a PySpark schema.
 
     Methods:
-        spark_schema: Generates a PySpark schema from the model fields.
+        model_spark_schema: Generates a PySpark schema from the model fields.
         _is_nullable: Determines if a type is nullable and returns the type without the Union.
         _get_spark_type: Returns the corresponding PySpark data type for a given Python type, considering nullability.
         _type_to_spark: Converts a given Python type to a corresponding PySpark data type.
@@ -56,17 +57,22 @@ class SparkModel(BaseModel):
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
-    def model_spark_schema(self) -> StructType:
+    @classmethod
+    def model_spark_schema(cls) -> StructType:
         """Generates a PySpark schema from the model fields.
 
         Returns:
             StructType: The generated PySpark schema.
         """
         fields = []
-        for k, v in self.model_fields.items():
-            t, nullable = self._type_to_spark(v.annotation)
-            _struct_field = StructField(k, t, nullable)
-            fields.append(_struct_field)
+        for k, v in cls.model_fields.items():
+            if (inspect.isclass(v.annotation)) and (issubclass(v.annotation, SparkModel)):
+                _struct_field = StructField(k, v.annotation.model_spark_schema(), True)
+                fields.append(StructField(k, v.annotation.model_spark_schema()))
+            else:
+                t, nullable = cls._type_to_spark(v.annotation)
+                _struct_field = StructField(k, t, nullable)
+                fields.append(_struct_field)
         return StructType(fields)
 
     @staticmethod
@@ -101,7 +107,8 @@ class SparkModel(BaseModel):
         spark_type.nullable = nullable
         return spark_type()
 
-    def _type_to_spark(self, t: Type) -> Tuple[DataType, bool]:
+    @classmethod
+    def _type_to_spark(cls, t: Type) -> Tuple[DataType, bool]:
         """Converts a given Python type to a corresponding PySpark data type.
 
         Args:
@@ -113,17 +120,17 @@ class SparkModel(BaseModel):
         Raises:
             TypeError: If the type is not recognized in the type map.
         """
-        nullable, t = self._is_nullable(t)
+        nullable, t = cls._is_nullable(t)
 
         args = get_args(t)
         origin = get_origin(t)
 
         if origin is list:
-            array_type = self._get_spark_type(args[0], nullable)
+            array_type = cls._get_spark_type(args[0], nullable)
             return ArrayType(array_type, nullable), nullable
         elif origin is dict:
-            key_type, _ = self._type_to_spark(args[0])
-            value_type, _ = self._type_to_spark(args[1])
+            key_type, _ = cls._type_to_spark(args[0])
+            value_type, _ = cls._type_to_spark(args[1])
             return MapType(key_type, value_type, nullable), nullable
 
         try:
