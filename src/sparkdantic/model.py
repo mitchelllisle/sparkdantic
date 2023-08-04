@@ -66,8 +66,7 @@ class SparkModel(BaseModel):
         """
         fields = []
         for k, v in cls.model_fields.items():
-            if (inspect.isclass(v.annotation)) and (issubclass(v.annotation, SparkModel)):
-                _struct_field = StructField(k, v.annotation.model_spark_schema(), True)
+            if cls._is_spark_model_subclass(v.annotation):
                 fields.append(StructField(k, v.annotation.model_spark_schema()))
             else:
                 t, nullable = cls._type_to_spark(v.annotation)
@@ -91,6 +90,10 @@ class SparkModel(BaseModel):
                 t = type_args[0]
                 return True, t
         return False, t
+
+    @classmethod
+    def _is_spark_model_subclass(cls, value):
+        return (inspect.isclass(value)) and (issubclass(value, SparkModel))
 
     @staticmethod
     def _get_spark_type(t: Type, nullable: bool) -> DataType:
@@ -126,7 +129,10 @@ class SparkModel(BaseModel):
         origin = get_origin(t)
 
         if origin is list:
-            array_type = cls._get_spark_type(args[0], nullable)
+            if cls._is_spark_model_subclass(args[0]):
+                array_type = args[0].model_spark_schema()
+            else:
+                array_type = cls._get_spark_type(args[0], nullable)
             return ArrayType(array_type, nullable), nullable
         elif origin is dict:
             key_type, _ = cls._type_to_spark(args[0])

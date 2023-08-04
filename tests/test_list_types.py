@@ -22,6 +22,10 @@ from pyspark.sql.types import (
 from sparkdantic.model import SparkModel
 
 
+class MyModel(SparkModel):
+    k: str
+
+
 class ListValuesModel(SparkModel):
     m: List[int]
     n: List[float]
@@ -32,6 +36,7 @@ class ListValuesModel(SparkModel):
     aa: List[date]
     ee: List[datetime]
     ii: List[timedelta]
+    oo: List[MyModel]
 
 
 list_values_strategy = st.fixed_dictionaries(
@@ -47,6 +52,7 @@ list_values_strategy = st.fixed_dictionaries(
         'aa': st.lists(st.dates()),
         'ee': st.lists(st.datetimes()),
         'ii': st.lists(st.timedeltas()),
+        'oo': st.lists(st.builds(MyModel, k=st.text(min_size=1, max_size=20)))
     }
 )
 
@@ -64,6 +70,7 @@ def test_list_values(data):
             StructField('aa', ArrayType(DateType(), False), False),
             StructField('ee', ArrayType(TimestampType(), False), False),
             StructField('ii', ArrayType(DayTimeIntervalType(0, 3), False), False),
+            StructField('oo', ArrayType(StructType([StructField("k", StringType(), False)]), False), False),
         ]
     )
     user = ListValuesModel(**data)
