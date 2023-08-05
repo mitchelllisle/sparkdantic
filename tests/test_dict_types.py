@@ -2,8 +2,6 @@ from datetime import date, datetime, timedelta
 from decimal import Decimal
 from typing import Dict
 
-from hypothesis import given
-from hypothesis import strategies as st
 from pyspark.sql.types import (
     BinaryType,
     BooleanType,
@@ -34,33 +32,7 @@ class DictValuesModel(SparkModel):
     jj: Dict[timedelta, timedelta]
 
 
-dict_values_strategy = st.fixed_dictionaries(
-    {
-        's': st.dictionaries(
-            keys=st.integers(min_value=1, max_value=1000),
-            values=st.integers(min_value=1, max_value=1000),
-        ),
-        't': st.dictionaries(
-            keys=st.floats(min_value=0, max_value=5), values=st.floats(min_value=0, max_value=5)
-        ),
-        'u': st.dictionaries(
-            keys=st.text(min_size=1, max_size=20), values=st.text(min_size=1, max_size=20)
-        ),
-        'v': st.dictionaries(keys=st.booleans(), values=st.booleans()),
-        'w': st.dictionaries(keys=st.binary(max_size=100), values=st.binary(max_size=100)),
-        'x': st.dictionaries(
-            keys=st.decimals(min_value=0, max_value=1000, allow_nan=False, allow_infinity=False),
-            values=st.decimals(min_value=0, max_value=1000, allow_nan=False, allow_infinity=False),
-        ),
-        'bb': st.dictionaries(keys=st.dates(), values=st.dates()),
-        'ff': st.dictionaries(keys=st.datetimes(), values=st.datetimes()),
-        'jj': st.dictionaries(keys=st.timedeltas(), values=st.timedeltas()),
-    }
-)
-
-
-@given(dict_values_strategy)
-def test_dict_values(data):
+def test_dict_values():
     expected_schema = StructType(
         [
             StructField('s', MapType(IntegerType(), IntegerType(), False), False),
@@ -77,6 +49,5 @@ def test_dict_values(data):
         ]
     )
 
-    user = DictValuesModel(**data)
-    generated_schema = user.model_spark_schema()
+    generated_schema = DictValuesModel.model_spark_schema()
     assert generated_schema == expected_schema

@@ -26,7 +26,7 @@ RUN make install
 
 USER sparkdantic-user
 
-ENTRYPOINT [sparkdantic]
+ENTRYPOINT ["sparkdantic"]
 
 
 FROM serve as test
