@@ -30,6 +30,7 @@ class RawValuesModel(SparkModel):
     y: date
     cc: datetime
     gg: timedelta
+    hh: DoubleType
 
 
 raw_values_strategy = st.fixed_dictionaries(
@@ -43,6 +44,7 @@ raw_values_strategy = st.fixed_dictionaries(
         'y': st.dates(),
         'cc': st.datetimes(),
         'gg': st.timedeltas(),
+        'hh': st.builds(DoubleType)
     }
 )
 
@@ -60,6 +62,7 @@ def test_raw_values(data):
             StructField('y', DateType(), False),
             StructField('cc', TimestampType(), False),
             StructField('gg', DayTimeIntervalType(0, 3), False),
+            StructField('hh', DoubleType(),  False)
         ]
     )
     user = RawValuesModel(**data)

@@ -28,6 +28,23 @@ if sys.version_info > (3, 10):
 else:
     UnionType = Union  # pragma: no cover
 
+native_spark_types = [
+    ArrayType,
+    BinaryType,
+    BooleanType,
+    DataType,
+    DateType,
+    DayTimeIntervalType,
+    DecimalType,
+    DoubleType,
+    IntegerType,
+    MapType,
+    StringType,
+    StructField,
+    StructType,
+    TimestampType,
+]
+
 type_map = MappingProxyType(
     {
         int: IntegerType,
@@ -141,7 +158,10 @@ class SparkModel(BaseModel):
             return MapType(key_type, value_type, nullable), nullable
 
         try:
-            spark_type = type_map[t]
+            if t in native_spark_types:
+                spark_type = t
+            else:
+                spark_type = type_map[t]
             spark_type.nullable = nullable
             return spark_type(), nullable
         except KeyError:
