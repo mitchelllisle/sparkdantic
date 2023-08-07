@@ -66,8 +66,9 @@ class SparkModel(BaseModel):
         """
         fields = []
         for k, v in cls.model_fields.items():
-            if cls._is_spark_model_subclass(v.annotation):
-                fields.append(StructField(k, v.annotation.model_spark_schema()))
+            _, t = cls._is_nullable(v.annotation)
+            if cls._is_spark_model_subclass(t):
+                fields.append(StructField(k, t.model_spark_schema()))
             else:
                 t, nullable = cls._type_to_spark(v.annotation)
                 _struct_field = StructField(k, t, nullable)

@@ -1,6 +1,6 @@
 from datetime import date, datetime, timedelta
 from decimal import Decimal
-from typing import List
+from typing import List, Optional
 
 from hypothesis import given
 from hypothesis import strategies as st
@@ -37,6 +37,7 @@ class ListValuesModel(SparkModel):
     ee: List[datetime]
     ii: List[timedelta]
     oo: List[MyModel]
+    o1: Optional[List[MyModel]]
 
 
 list_values_strategy = st.fixed_dictionaries(
@@ -52,7 +53,8 @@ list_values_strategy = st.fixed_dictionaries(
         'aa': st.lists(st.dates()),
         'ee': st.lists(st.datetimes()),
         'ii': st.lists(st.timedeltas()),
-        'oo': st.lists(st.builds(MyModel, k=st.text(min_size=1, max_size=20)))
+        'oo': st.lists(st.builds(MyModel, k=st.text(min_size=1, max_size=20))),
+        'o1': st.lists(st.builds(MyModel, k=st.text(min_size=1, max_size=20)))
     }
 )
 
@@ -71,6 +73,7 @@ def test_list_values(data):
             StructField('ee', ArrayType(TimestampType(), False), False),
             StructField('ii', ArrayType(DayTimeIntervalType(0, 3), False), False),
             StructField('oo', ArrayType(StructType([StructField("k", StringType(), False)]), False), False),
+            StructField('o1', ArrayType(StructType([StructField("k", StringType(), False)]), True), True),
         ]
     )
     user = ListValuesModel(**data)
