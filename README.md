@@ -2,7 +2,7 @@
 
 [![PyPI version](https://badge.fury.io/py/sparkdantic.svg)](https://badge.fury.io/py/sparkdantic)
 
-> 1️⃣ version: 0.2.1
+> 1️⃣ version: 0.2.3
 
 > ✍️ author: Mitchell Lisle
 
@@ -59,3 +59,21 @@ StructType([
     StructField('hobbies', ArrayType(StringType(), False), True)
 ])
 ```
+
+## Contributing
+Contributions welcome! If you would like to add a new feature / fix a bug feel free to raise a PR and tag me (`mitchelllisle`) as
+a reviewer. Please setup your environment locally to ensure all styling and development flow is as close to the standards set in
+this project as possible. To do this, the main thing you'll need is `poetry`. You should also run `make install-dev-local` which 
+will install the `pre-commit-hooks` as well as install the project locally. PRs won't be accepted without sufficient tests and 
+we will be strict on maintaining a 100% test coverage.
+
+> ℹ️ Note that after you have run `make install-dev-local` and make a commit we run the test suite as part of the pre-commit 
+> hook checks. This is to ensure you don't commit code that breaks the tests. This will also try and commit changes to 
+> the COVERAGE.txt file so that we can compare coverage in each PR. Please ensure this file is commited with your changes
+
+> ℹ️ Versioning: We use `bumpversion` to maintain the version across various files. If you submit a PR please run bumpversion to
+> the following rules:
+> `bumpversion major`: If you are making breaking changes (that is, anyone who already uses this library can no longer rely on
+> existing methods / functionality)
+> `bumpversion minor`: If you are added functionality or features that maintain existing methods and features
+> `bumpversion path`: If you are fixing a bug or making some other small change
