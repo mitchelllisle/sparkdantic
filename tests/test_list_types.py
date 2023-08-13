@@ -1,6 +1,6 @@
 from datetime import date, datetime, timedelta
 from decimal import Decimal
-from typing import List
+from typing import List, Optional
 
 from pyspark.sql.types import (
     ArrayType,
@@ -20,6 +20,10 @@ from pyspark.sql.types import (
 from sparkdantic.model import SparkModel
 
 
+class MyModel(SparkModel):
+    k: str
+
+
 class ListValuesModel(SparkModel):
     m: List[int]
     n: List[float]
@@ -30,6 +34,8 @@ class ListValuesModel(SparkModel):
     aa: List[date]
     ee: List[datetime]
     ii: List[timedelta]
+    oo: List[MyModel]
+    o1: Optional[List[MyModel]]
 
 
 def test_list_values():
@@ -44,6 +50,8 @@ def test_list_values():
             StructField('aa', ArrayType(DateType(), False), False),
             StructField('ee', ArrayType(TimestampType(), False), False),
             StructField('ii', ArrayType(DayTimeIntervalType(0, 3), False), False),
+            StructField('oo', ArrayType(StructType([StructField("k", StringType(), False)]), False), False),
+            StructField('o1', ArrayType(StructType([StructField("k", StringType(), False)]), True), True),
         ]
     )
     generated_schema = ListValuesModel.model_spark_schema()

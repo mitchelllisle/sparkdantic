@@ -28,6 +28,7 @@ class RawValuesModel(SparkModel):
     y: date
     cc: datetime
     gg: timedelta
+    hh: DoubleType
 
 
 def test_raw_values():
@@ -42,6 +43,7 @@ def test_raw_values():
             StructField('y', DateType(), False),
             StructField('cc', TimestampType(), False),
             StructField('gg', DayTimeIntervalType(0, 3), False),
+            StructField('hh', DoubleType(), False),
         ]
     )
     generated_schema = RawValuesModel.model_spark_schema()

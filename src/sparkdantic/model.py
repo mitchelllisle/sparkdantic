@@ -28,6 +28,23 @@ if sys.version_info > (3, 10):
 else:
     UnionType = Union  # pragma: no cover
 
+native_spark_types = [
+    ArrayType,
+    BinaryType,
+    BooleanType,
+    DataType,
+    DateType,
+    DayTimeIntervalType,
+    DecimalType,
+    DoubleType,
+    IntegerType,
+    MapType,
+    StringType,
+    StructField,
+    StructType,
+    TimestampType,
+]
+
 type_map = MappingProxyType(
     {
         int: IntegerType,
@@ -66,9 +83,9 @@ class SparkModel(BaseModel):
         """
         fields = []
         for k, v in cls.model_fields.items():
-            if (inspect.isclass(v.annotation)) and (issubclass(v.annotation, SparkModel)):
-                _struct_field = StructField(k, v.annotation.model_spark_schema(), True)
-                fields.append(StructField(k, v.annotation.model_spark_schema()))
+            _, t = cls._is_nullable(v.annotation)
+            if cls._is_spark_model_subclass(t):
+                fields.append(StructField(k, t.model_spark_schema()))
             else:
                 t, nullable = cls._type_to_spark(v.annotation)
                 _struct_field = StructField(k, t, nullable)
@@ -91,6 +108,10 @@ class SparkModel(BaseModel):
                 t = type_args[0]
                 return True, t
         return False, t
+
+    @classmethod
+    def _is_spark_model_subclass(cls, value):
+        return (inspect.isclass(value)) and (issubclass(value, SparkModel))
 
     @staticmethod
     def _get_spark_type(t: Type, nullable: bool) -> DataType:
@@ -126,7 +147,10 @@ class SparkModel(BaseModel):
         origin = get_origin(t)
 
         if origin is list:
-            array_type = cls._get_spark_type(args[0], nullable)
+            if cls._is_spark_model_subclass(args[0]):
+                array_type = args[0].model_spark_schema()
+            else:
+                array_type = cls._get_spark_type(args[0], nullable)
             return ArrayType(array_type, nullable), nullable
         elif origin is dict:
             key_type, _ = cls._type_to_spark(args[0])
@@ -134,7 +158,10 @@ class SparkModel(BaseModel):
             return MapType(key_type, value_type, nullable), nullable
 
         try:
-            spark_type = type_map[t]
+            if t in native_spark_types:
+                spark_type = t
+            else:
+                spark_type = type_map[t]
             spark_type.nullable = nullable
             return spark_type(), nullable
         except KeyError:
