@@ -75,5 +75,5 @@ we will be strict on maintaining a 100% test coverage.
 > the following rules:
 > `bumpversion major`: If you are making breaking changes (that is, anyone who already uses this library can no longer rely on
 > existing methods / functionality)
-> `bumpversion minor`: If you are added functionality or features that maintain existing methods and features
-> `bumpversion path`: If you are fixing a bug or making some other small change
+> `bumpversion minor`: If you are adding functionality or features that maintain existing methods and features
+> `bumpversion patch`: If you are fixing a bug or making some other small change

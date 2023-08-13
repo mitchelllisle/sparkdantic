@@ -50,8 +50,12 @@ def test_list_values():
             StructField('aa', ArrayType(DateType(), False), False),
             StructField('ee', ArrayType(TimestampType(), False), False),
             StructField('ii', ArrayType(DayTimeIntervalType(0, 3), False), False),
-            StructField('oo', ArrayType(StructType([StructField("k", StringType(), False)]), False), False),
-            StructField('o1', ArrayType(StructType([StructField("k", StringType(), False)]), True), True),
+            StructField(
+                'oo', ArrayType(StructType([StructField('k', StringType(), False)]), False), False
+            ),
+            StructField(
+                'o1', ArrayType(StructType([StructField('k', StringType(), False)]), True), True
+            ),
         ]
     )
     generated_schema = ListValuesModel.model_spark_schema()
