@@ -2,7 +2,7 @@
 
 [![PyPI version](https://badge.fury.io/py/sparkdantic.svg)](https://badge.fury.io/py/sparkdantic)
 
-> 1️⃣ version: 0.2.3
+> 1️⃣ version: 0.3.0
 
 > ✍️ author: Mitchell Lisle
 
