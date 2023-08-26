@@ -3,9 +3,11 @@ import sys
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 from types import MappingProxyType
-from typing import Tuple, Type, Union, get_args, get_origin
+from typing import Dict, Optional, Tuple, Type, Union, get_args, get_origin
 
+import dbldatagen as dg
 from pydantic import BaseModel, ConfigDict
+from pyspark.sql import SparkSession
 from pyspark.sql.types import (
     ArrayType,
     BinaryType,
@@ -22,6 +24,8 @@ from pyspark.sql.types import (
     StructType,
     TimestampType,
 )
+
+from sparkdantic.generation import ColumnGenerationSpec
 
 if sys.version_info > (3, 10):
     from types import UnionType
@@ -73,6 +77,29 @@ class SparkModel(BaseModel):
     """
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    @classmethod
+    def generate_data(
+        cls,
+        spark: SparkSession,
+        n_rows: int = 100,
+        specs: Optional[Dict[str, ColumnGenerationSpec]] = None,
+    ) -> dg.DataGenerator:
+        specs = {} if not specs else specs
+        generator = dg.DataGenerator(spark, rows=n_rows)
+        for name, field in cls.model_fields.items():
+            t, nullable = cls._type_to_spark(field.annotation)
+            spec = specs.get(name)
+            if spec:
+                generator.withColumn(
+                    name,
+                    colType=t,
+                    nullable=nullable,
+                    **spec.model_dump(by_alias=True, exclude_none=True),
+                )
+            else:
+                generator.withColumn(name, colType=t, nullable=nullable)
+        return generator
 
     @classmethod
     def model_spark_schema(cls) -> StructType:
