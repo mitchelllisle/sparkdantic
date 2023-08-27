@@ -35,7 +35,7 @@ clean-test: ## remove test and coverage artifacts
 test: ## run tests (and coverage if configured in setup.cfg) with the default Python
 	@echo -----------------------------------------------------------------
 	@echo RUNNING TESTS...
-	poetry run pytest --cov=sparkdantic
+	poetry run pytest -v --cov=sparkdantic
 	@echo ✅ Tests have passed! Nice work!
 	@echo -----------------------------------------------------------------
 

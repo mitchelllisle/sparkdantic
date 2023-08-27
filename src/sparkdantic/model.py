@@ -3,9 +3,11 @@ import sys
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 from types import MappingProxyType
-from typing import Tuple, Type, Union, get_args, get_origin
+from typing import Dict, List, Optional, Tuple, Type, Union, get_args, get_origin
 
-from pydantic import BaseModel, ConfigDict
+import dbldatagen as dg
+from pydantic import BaseModel, ConfigDict, Field
+from pyspark.sql import SparkSession
 from pyspark.sql.types import (
     ArrayType,
     BinaryType,
@@ -22,6 +24,8 @@ from pyspark.sql.types import (
     StructType,
     TimestampType,
 )
+
+from sparkdantic.generation import ColumnGenerationSpec
 
 if sys.version_info > (3, 10):
     from types import UnionType
@@ -61,6 +65,8 @@ type_map = MappingProxyType(
     }
 )
 
+ColumnSpecs = Optional[Dict[str, ColumnGenerationSpec]]
+
 
 class SparkModel(BaseModel):
     """Spark Model representing a Pydantic BaseModel with additional methods to convert it to a PySpark schema.
@@ -73,6 +79,51 @@ class SparkModel(BaseModel):
     """
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    @classmethod
+    def _type_to_spark_type_specs(cls, t: Type) -> Tuple[DataType, Optional[str], bool]:
+        spark_type, nullable = cls._type_to_spark(t)
+        if isinstance(spark_type, ArrayType):
+            return spark_type.elementType, ArrayType.typeName(), nullable
+        return spark_type, None, nullable
+
+    @classmethod
+    def _spec_weights_to_row_count(
+        cls, generator: dg.DataGenerator, weights: List[float]
+    ) -> List[int]:
+        return [int(generator.rowCount * w) for w in weights]
+
+    @classmethod
+    def _add_column_specs(
+        cls, generator: dg.DataGenerator, spec: ColumnGenerationSpec, name: str, field: Field
+    ):
+        t, container, nullable = cls._type_to_spark_type_specs(field.annotation)
+        if spec:
+            if spec.weights:
+                spec.weights = cls._spec_weights_to_row_count(generator, spec.weights)  # type: ignore
+            generator.withColumn(
+                name,
+                colType=t,
+                nullable=nullable,
+                structType=container,
+                **spec.model_dump(by_alias=True, exclude_none=True),
+            )
+        else:
+            generator.withColumn(name, colType=t, nullable=nullable, structType=container)
+
+    @classmethod
+    def generate_data(
+        cls,
+        spark: SparkSession,
+        n_rows: int = 100,
+        specs: Optional[ColumnSpecs] = None,
+    ) -> dg.DataGenerator:
+        specs = {} if not specs else specs
+        generator = dg.DataGenerator(spark, rows=n_rows)
+        for name, field in cls.model_fields.items():
+            spec = specs.get(name)
+            cls._add_column_specs(generator, spec, name, field)  # type: ignore
+        return generator
 
     @classmethod
     def model_spark_schema(cls) -> StructType:
