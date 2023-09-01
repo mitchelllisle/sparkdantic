@@ -112,7 +112,8 @@ class SparkModel(BaseModel):
             if spec.mapping:
                 if spec.mapping_source is None:
                     raise ValueError(
-                        'You must specify which columns to pass to callable if callable is defined'
+                        'You have specified a mapping but not mapping_source. You must pass ina valid column name to'
+                        ' map values to.'
                     )
                 cls._mapped_field.default.append((name, spec.mapping, spec.mapping_source))
 
