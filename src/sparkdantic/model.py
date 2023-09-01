@@ -6,7 +6,7 @@ from types import MappingProxyType
 from typing import Dict, List, Optional, Tuple, Type, Union, get_args, get_origin
 
 import dbldatagen as dg
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, SecretBytes, SecretStr
 from pydantic.fields import ModelPrivateAttr
 from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql import functions as F  # noqa
@@ -56,8 +56,10 @@ type_map = MappingProxyType(
         int: IntegerType,
         float: DoubleType,
         str: StringType,
+        SecretStr: StringType,
         bool: BooleanType,
         bytes: BinaryType,
+        SecretBytes: BinaryType,
         list: ArrayType,
         dict: MapType,
         datetime: TimestampType,
