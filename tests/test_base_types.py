@@ -1,6 +1,7 @@
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 
+from pydantic import SecretBytes, SecretStr
 from pyspark.sql.types import (
     BinaryType,
     BooleanType,
@@ -29,6 +30,8 @@ class RawValuesModel(SparkModel):
     cc: datetime
     gg: timedelta
     hh: DoubleType
+    ii: SecretBytes
+    jj: SecretStr
 
 
 def test_raw_values():
@@ -44,6 +47,8 @@ def test_raw_values():
             StructField('cc', TimestampType(), False),
             StructField('gg', DayTimeIntervalType(0, 3), False),
             StructField('hh', DoubleType(), False),
+            StructField('ii', BinaryType(), False),
+            StructField('jj', StringType(), False),
         ]
     )
     generated_schema = RawValuesModel.model_spark_schema()
