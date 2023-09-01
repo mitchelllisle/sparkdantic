@@ -7,7 +7,9 @@ from typing import Dict, List, Optional, Tuple, Type, Union, get_args, get_origi
 
 import dbldatagen as dg
 from pydantic import BaseModel, ConfigDict, Field
-from pyspark.sql import SparkSession
+from pydantic.fields import ModelPrivateAttr
+from pyspark.sql import DataFrame, SparkSession
+from pyspark.sql import functions as F  # noqa
 from pyspark.sql.types import (
     ArrayType,
     BinaryType,
@@ -79,6 +81,8 @@ class SparkModel(BaseModel):
     """
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
+    _mapped_field: ModelPrivateAttr = list()
+    _non_standard_fields: ModelPrivateAttr = {'value', 'mapping', 'mapping_source'}
 
     @classmethod
     def _type_to_spark_type_specs(cls, t: Type) -> Tuple[DataType, Optional[str], bool]:
@@ -101,29 +105,47 @@ class SparkModel(BaseModel):
         if spec:
             if spec.weights:
                 spec.weights = cls._spec_weights_to_row_count(generator, spec.weights)  # type: ignore
+
+            if spec.value:
+                spec.values = [spec.value]
+
+            if spec.mapping:
+                if spec.mapping_source is None:
+                    raise ValueError(
+                        'You must specify which columns to pass to callable if callable is defined'
+                    )
+                cls._mapped_field.default.append((name, spec.mapping, spec.mapping_source))
+
             generator.withColumn(
                 name,
                 colType=t,
                 nullable=nullable,
                 structType=container,
-                **spec.model_dump(by_alias=True, exclude_none=True),
+                **spec.model_dump(
+                    by_alias=True, exclude_none=True, exclude=cls._non_standard_fields.default
+                ),
             )
         else:
             generator.withColumn(name, colType=t, nullable=nullable, structType=container)
 
     @classmethod
+    def _post_mapping_process(cls, data: DataFrame) -> DataFrame:
+        for target, mapping, source in cls._mapped_field.default:
+            mapping_expr = F.create_map([F.lit(x) for x in sum(mapping.items(), ())])
+            data = data.withColumn(target, mapping_expr.getItem(data[source]))
+        return data
+
+    @classmethod
     def generate_data(
-        cls,
-        spark: SparkSession,
-        n_rows: int = 100,
-        specs: Optional[ColumnSpecs] = None,
-    ) -> dg.DataGenerator:
+        cls, spark: SparkSession, n_rows: int = 100, specs: Optional[ColumnSpecs] = None, **kwargs
+    ) -> DataFrame:
         specs = {} if not specs else specs
-        generator = dg.DataGenerator(spark, rows=n_rows)
+        generator = dg.DataGenerator(spark, rows=n_rows, **kwargs)
         for name, field in cls.model_fields.items():
             spec = specs.get(name)
             cls._add_column_specs(generator, spec, name, field)  # type: ignore
-        return generator
+        generated = generator.build()
+        return cls._post_mapping_process(generated)
 
     @classmethod
     def model_spark_schema(cls) -> StructType:
@@ -136,7 +158,7 @@ class SparkModel(BaseModel):
         for k, v in cls.model_fields.items():
             _, t = cls._is_nullable(v.annotation)
             if cls._is_spark_model_subclass(t):
-                fields.append(StructField(k, t.model_spark_schema()))
+                fields.append(StructField(k, t.model_spark_schema()))  # type: ignore
             else:
                 t, nullable = cls._type_to_spark(v.annotation)
                 _struct_field = StructField(k, t, nullable)

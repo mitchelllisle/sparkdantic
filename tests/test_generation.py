@@ -8,14 +8,17 @@ from sparkdantic import ColumnGenerationSpec, SparkModel
 
 
 class SimpleModel(SparkModel):
+    logic_number: int
+    logic: str
     name: str
     age: Optional[int] = None
     jobs: List[str]
     map: Dict[str, str]
+    single_value: int
 
 
 def test_generate_data(spark: SparkSession):
-    data_gen = SimpleModel.generate_data(spark, n_rows=10).build().collect()
+    data_gen = SimpleModel.generate_data(spark, n_rows=10).collect()
     assert data_gen is not None
     assert len(data_gen) == 10
 
@@ -44,7 +47,7 @@ def _check_types_and_subtypes_match(field, row, name):
 
 
 def test_column_defaults(spark: SparkSession):
-    data_gen = SimpleModel.generate_data(spark, n_rows=1000).build().collect()
+    data_gen = SimpleModel.generate_data(spark, n_rows=1000).collect()
     for row in data_gen:
         for name, field in SimpleModel.model_fields.items():
             _check_types_and_subtypes_match(field, row, name)
@@ -57,11 +60,19 @@ def test_columns_with_specs(spark: SparkSession, faker: Faker):
         'name': ColumnGenerationSpec(values=names),
         'age': ColumnGenerationSpec(min_value=10, max_value=20),
         'jobs': ColumnGenerationSpec(values=[faker.job(), faker.job()]),
+        'single_value': ColumnGenerationSpec(value=1),
+        'logic_number': ColumnGenerationSpec(values=[1, 2]),
+        'logic': ColumnGenerationSpec(mapping={1: 'a', 2: 'b'}, mapping_source='logic_number'),
     }
-    data_gen = SimpleModel.generate_data(spark, specs=specs, n_rows=n_rows).build().collect()
+    data_gen = SimpleModel.generate_data(spark, specs=specs, n_rows=n_rows).collect()
     for row in data_gen:
         assert row.name in names
         assert row.age >= 10
         assert row.age <= 20
+        assert row.single_value == 1
+        if row.logic_number == 1:
+            assert row.logic == 'a'
+        if row.logic_number == 2:
+            assert row.logic == 'b'
         for name, field in SimpleModel.model_fields.items():
             _check_types_and_subtypes_match(field, row, name)

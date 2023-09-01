@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, Iterable, List, Optional, Union
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -15,6 +15,7 @@ class ColumnGenerationSpec(BaseModel):
     base_column: Optional[Union[str, List[str]]] = Field(
         default=None, serialization_alias='baseColumn'
     )
+    value: Optional[Any] = None
     values: Optional[List[Any]] = None
     dict_values: Optional[Dict[Any, Any]] = None
     weights: Optional[List[Union[float, int]]] = None
@@ -30,6 +31,8 @@ class ColumnGenerationSpec(BaseModel):
     num_columns: Optional[int] = Field(default=None, serialization_alias='numColumns')
     num_features: Optional[int] = Field(default=None, serialization_alias='numFeatures')
     struct_type: Optional[str] = Field(default=None, serialization_alias='structType')
+    mapping: Optional[Dict[Any, Any]] = Field(default=None)
+    mapping_source: Optional[str] = Field(default=None)
 
     @classmethod
     @field_validator('weights')
