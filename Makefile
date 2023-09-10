@@ -54,15 +54,7 @@ dist: clean ## builds source and wheel package
 
 
 install: clean ## install the package to the active Python's site-packages via pip
-	@echo -----------------------------------------------------------------
-	@echo INSTALLING sparkdantic...
 	poetry install
-	@echo INSTALLED sparkdantic
-	@echo - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-	@echo sparkdantic info:
-	@echo - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-	pip show sparkdantic
-	@echo -----------------------------------------------------------------
 
 
 install-e: clean ## install via pip in editable mode this see https://pip.pypa.io/en/stable/reference/pip_install/#editable-installs
