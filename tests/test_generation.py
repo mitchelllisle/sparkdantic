@@ -4,11 +4,16 @@ import dbldatagen as dg
 import pytest
 from faker import Faker
 from pyspark.sql import SparkSession
+from pyspark.sql import functions as f
 
 from sparkdantic import ColumnGenerationSpec, SparkModel
 
 
-class SimpleModel(SparkModel):
+class SingleFieldModel(SparkModel):
+    val: int
+
+
+class SampleModel(SparkModel):
     logic_number: int
     logic: str
     name: str
@@ -19,7 +24,7 @@ class SimpleModel(SparkModel):
 
 
 def test_generate_data(spark: SparkSession):
-    data_gen = SimpleModel.generate_data(spark, n_rows=10).collect()
+    data_gen = SampleModel.generate_data(spark, n_rows=10).collect()
     assert data_gen is not None
     assert len(data_gen) == 10
 
@@ -28,7 +33,7 @@ def test_weights_conversion(spark: SparkSession):
     n_rows = 1000
     generator = dg.DataGenerator(spark, rows=n_rows)
     weights = [0.1, 0.2, 0.7]
-    adjusted = SimpleModel._spec_weights_to_row_count(generator, weights)
+    adjusted = SampleModel._spec_weights_to_row_count(generator, weights)
     assert generator.rowCount == n_rows
     assert adjusted == [100, 200, 700]
     assert sum(adjusted) == n_rows
@@ -48,9 +53,9 @@ def _check_types_and_subtypes_match(field, row, name):
 
 
 def test_column_defaults(spark: SparkSession):
-    data_gen = SimpleModel.generate_data(spark, n_rows=1000).collect()
+    data_gen = SampleModel.generate_data(spark, n_rows=1000).collect()
     for row in data_gen:
-        for name, field in SimpleModel.model_fields.items():
+        for name, field in SampleModel.model_fields.items():
             _check_types_and_subtypes_match(field, row, name)
 
 
@@ -65,7 +70,7 @@ def test_columns_with_specs(spark: SparkSession, faker: Faker):
         'logic_number': ColumnGenerationSpec(values=[1, 2]),
         'logic': ColumnGenerationSpec(mapping={1: 'a', 2: 'b'}, mapping_source='logic_number'),
     }
-    data_gen = SimpleModel.generate_data(spark, specs=specs, n_rows=n_rows).collect()
+    data_gen = SampleModel.generate_data(spark, specs=specs, n_rows=n_rows).collect()
     for row in data_gen:
         assert row.name in names
         assert row.age >= 10
@@ -75,7 +80,7 @@ def test_columns_with_specs(spark: SparkSession, faker: Faker):
             assert row.logic == 'a'
         if row.logic_number == 2:
             assert row.logic == 'b'
-        for name, field in SimpleModel.model_fields.items():
+        for name, field in SampleModel.model_fields.items():
             _check_types_and_subtypes_match(field, row, name)
 
 
@@ -87,3 +92,18 @@ def test_weights_validator_error():
 def test_weights_validator():
     spec = ColumnGenerationSpec(weights=[0.1, 0.9])
     assert sum(spec.weights) == 1
+
+
+def test_weight_validator_error_in_generate(spark: SparkSession):
+
+    spec = {'val': ColumnGenerationSpec(values=[1, 2], weights=[0.9, 0.1])}
+
+    synthetic = SingleFieldModel.generate_data(spark, specs=spec, n_rows=10)
+    assert len(synthetic.where(f.col('val') == 1).collect()) == 9
+    assert len(synthetic.where(f.col('val') == 2).collect()) == 1
+
+
+def test_missing_mapping_source(spark: SparkSession):
+    specs = {'val': ColumnGenerationSpec(mapping={'a': 2})}
+    with pytest.raises(ValueError):
+        SingleFieldModel.generate_data(spark, specs=specs, n_rows=10)

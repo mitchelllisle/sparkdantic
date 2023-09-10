@@ -19,7 +19,7 @@ jobs:
       - name: Install Tests
         run: make install-all
       - name: Run Tests
-        run: make test-cli
+        run: make test-ci
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v3
         env:
