@@ -66,7 +66,7 @@ install-e: clean ## install via pip in editable mode this see https://pip.pypa.i
 	pip install -e .
 
 test-cov: test ## run tests locally and output coverage file
-	coverage report > COVERAGE.txt
+	poetry run coverage report > COVERAGE.txt
 
 commit-cov:
 	git add COVERAGE.txt --force
