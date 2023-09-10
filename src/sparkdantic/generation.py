@@ -34,8 +34,8 @@ class ColumnGenerationSpec(BaseModel):
     mapping: Optional[Dict[Any, Any]] = Field(default=None)
     mapping_source: Optional[str] = Field(default=None)
 
+    @field_validator('weights', mode='before')
     @classmethod
-    @field_validator('weights')
     def weights_validator(cls, v: List[float]) -> List[float]:
         summed = sum(v)
         if summed != 1:

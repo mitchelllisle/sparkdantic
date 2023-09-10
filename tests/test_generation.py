@@ -1,6 +1,7 @@
 from typing import Dict, List, Optional, Union, get_args, get_origin
 
 import dbldatagen as dg
+import pytest
 from faker import Faker
 from pyspark.sql import SparkSession
 
@@ -76,3 +77,13 @@ def test_columns_with_specs(spark: SparkSession, faker: Faker):
             assert row.logic == 'b'
         for name, field in SimpleModel.model_fields.items():
             _check_types_and_subtypes_match(field, row, name)
+
+
+def test_weights_validator_error():
+    with pytest.raises(ValueError):
+        ColumnGenerationSpec(weights=[0.1])
+
+
+def test_weights_validator():
+    spec = ColumnGenerationSpec(weights=[0.1, 0.9])
+    assert sum(spec.weights) == 1
