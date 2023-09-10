@@ -19,4 +19,8 @@ jobs:
       - name: Install Tests
         run: make install-all
       - name: Run Tests
-        run: make test
+        run: make test-cli
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v3
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}

@@ -44,6 +44,9 @@ coverage: ## check code coverage quickly with the default Python
 	@echo producing coverage report at COVERAGE.txt...
 	coverage report > COVERAGE.txt
 
+test-cli:
+	poetry run pytest --cov=sparkdantic --cov-report=json
+
 
 dist: clean ## builds source and wheel package
 	poetry build
@@ -66,7 +69,7 @@ install-e: clean ## install via pip in editable mode this see https://pip.pypa.i
 	pip install -e .
 
 test-cov: test ## run tests locally and output coverage file
-	coverage report > COVERAGE.txt
+	poetry run coverage report > COVERAGE.txt
 
 commit-cov:
 	git add COVERAGE.txt --force
