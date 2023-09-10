@@ -100,4 +100,4 @@ stop-infra:
 	docker-compose -f docker/dev/docker-compose.yaml down
 
 docs: ## generate Sphinx HTML documentation, including API docs
-	poetry run mkdocs build html
+	poetry run mkdocs build
