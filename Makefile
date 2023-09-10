@@ -44,7 +44,7 @@ coverage: ## check code coverage quickly with the default Python
 	@echo producing coverage report at COVERAGE.txt...
 	coverage report > COVERAGE.txt
 
-test-cli:
+test-ci:
 	poetry run pytest --cov=sparkdantic --cov-report=json
 
 
