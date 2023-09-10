@@ -1,5 +1,6 @@
 import inspect
 import sys
+from collections import deque
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 from types import MappingProxyType
@@ -83,7 +84,7 @@ class SparkModel(BaseModel):
     """
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
-    _mapped_field: ModelPrivateAttr = list()
+    _mapped_field: ModelPrivateAttr = deque()
     _non_standard_fields: ModelPrivateAttr = {'value', 'mapping', 'mapping_source'}
 
     @classmethod
@@ -133,7 +134,8 @@ class SparkModel(BaseModel):
 
     @classmethod
     def _post_mapping_process(cls, data: DataFrame) -> DataFrame:
-        for target, mapping, source in cls._mapped_field.default:
+        for _ in range(len(cls._mapped_field.default)):
+            target, mapping, source = cls._mapped_field.default.popleft()
             mapping_expr = F.create_map([F.lit(x) for x in sum(mapping.items(), ())])
             data = data.withColumn(target, mapping_expr.getItem(data[source]))
         return data

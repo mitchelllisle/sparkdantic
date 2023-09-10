@@ -9,7 +9,7 @@ from pyspark.sql import functions as f
 from sparkdantic import ColumnGenerationSpec, SparkModel
 
 
-class SampleModelOne(SparkModel):
+class SingleFieldModel(SparkModel):
     val: int
 
 
@@ -95,9 +95,10 @@ def test_weights_validator():
 
 
 def test_weight_validator_error_in_generate(spark: SparkSession):
-    specs = {'val': ColumnGenerationSpec(values=[1, 2], weights=[0.9, 0.1])}
 
-    synthetic = SampleModelOne.generate_data(spark, specs=specs, n_rows=10)
+    spec = {'val': ColumnGenerationSpec(values=[1, 2], weights=[0.9, 0.1])}
+
+    synthetic = SingleFieldModel.generate_data(spark, specs=spec, n_rows=10)
     assert len(synthetic.where(f.col('val') == 1).collect()) == 9
     assert len(synthetic.where(f.col('val') == 2).collect()) == 1
 
@@ -105,4 +106,4 @@ def test_weight_validator_error_in_generate(spark: SparkSession):
 def test_missing_mapping_source(spark: SparkSession):
     specs = {'val': ColumnGenerationSpec(mapping={'a': 2})}
     with pytest.raises(ValueError):
-        SampleModelOne.generate_data(spark, specs=specs, n_rows=10)
+        SingleFieldModel.generate_data(spark, specs=specs, n_rows=10)
