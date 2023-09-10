@@ -89,6 +89,14 @@ class SparkModel(BaseModel):
 
     @classmethod
     def _type_to_spark_type_specs(cls, t: Type) -> Tuple[DataType, Optional[str], bool]:
+        """Converts a given type to its corresponding Spark data type specifications.
+
+        Args:
+            t (Type): The Python type.
+
+        Returns:
+            Tuple[DataType, Optional[str], bool]: The corresponding Spark DataType, container type, and nullability.
+        """
         spark_type, nullable = cls._type_to_spark(t)
         if isinstance(spark_type, ArrayType):
             return spark_type.elementType, ArrayType.typeName(), nullable
@@ -98,12 +106,29 @@ class SparkModel(BaseModel):
     def _spec_weights_to_row_count(
         cls, generator: dg.DataGenerator, weights: List[float]
     ) -> List[int]:
+        """Converts weights to row count.
+
+        Args:
+            generator (dg.DataGenerator): The data generator.
+            weights (List[float]): The list of weights.
+
+        Returns:
+            List[int]: List of row counts.
+        """
         return [int(generator.rowCount * w) for w in weights]
 
     @classmethod
     def _add_column_specs(
         cls, generator: dg.DataGenerator, spec: ColumnGenerationSpec, name: str, field: Field
     ):
+        """Adds column specifications to the DataGenerator.
+
+        Args:
+            generator (dg.DataGenerator): The data generator.
+            spec (ColumnGenerationSpec): The column generation specifications.
+            name (str): The column name.
+            field (Field): The Pydantic field.
+        """
         t, container, nullable = cls._type_to_spark_type_specs(field.annotation)
         if spec:
             if spec.weights:
@@ -134,6 +159,14 @@ class SparkModel(BaseModel):
 
     @classmethod
     def _post_mapping_process(cls, data: DataFrame) -> DataFrame:
+        """Processes the DataFrame after mapping.
+
+        Args:
+            data (DataFrame): The data frame to process.
+
+        Returns:
+            DataFrame: The processed DataFrame.
+        """
         for _ in range(len(cls._mapped_field.default)):
             target, mapping, source = cls._mapped_field.default.popleft()
             mapping_expr = F.create_map([F.lit(x) for x in sum(mapping.items(), ())])
@@ -144,6 +177,16 @@ class SparkModel(BaseModel):
     def generate_data(
         cls, spark: SparkSession, n_rows: int = 100, specs: Optional[ColumnSpecs] = None, **kwargs
     ) -> DataFrame:
+        """Generates PySpark DataFrame based on the schema and the column specs.
+
+        Args:
+            spark (SparkSession): The Spark session.
+            n_rows (int, optional): Number of rows. Defaults to 100.
+            specs (Optional[ColumnSpecs]): Column specifications. Defaults to None.
+
+        Returns:
+            DataFrame: The generated PySpark DataFrame.
+        """
         specs = {} if not specs else specs
         generator = dg.DataGenerator(spark, rows=n_rows, **kwargs)
         for name, field in cls.model_fields.items():
@@ -189,6 +232,14 @@ class SparkModel(BaseModel):
 
     @classmethod
     def _is_spark_model_subclass(cls, value):
+        """Checks if a class is a subclass of SparkModel.
+
+        Args:
+            value: The class to check.
+
+        Returns:
+            bool: True if it is a subclass, otherwise False.
+        """
         return (inspect.isclass(value)) and (issubclass(value, SparkModel))
 
     @staticmethod
