@@ -10,17 +10,17 @@ theme:
     text: Inter
   palette:
     - scheme: default
-      primary: purple
+      primary: blue
       toggle:
         icon: material/lightbulb
         name: Switch to dark mode
     - scheme: slate
-      primary: purple
+      primary: blue
       toggle:
         icon: material/lightbulb-outline
         name: Switch to light mode
   icon:
-    logo: material/shield-lock
+    logo: material/shimmer
     repo: fontawesome/brands/github
   features:
     - content.code.annotate
