@@ -7,15 +7,15 @@ edit_uri: ""
 theme:
   name: "material"
   font:
-    text: Inter
+    text: Raleway
   palette:
     - scheme: default
-      primary: blue
+      primary: blue grey
       toggle:
         icon: material/lightbulb
         name: Switch to dark mode
     - scheme: slate
-      primary: blue
+      primary: blue grey
       toggle:
         icon: material/lightbulb-outline
         name: Switch to light mode
