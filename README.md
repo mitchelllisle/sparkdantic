@@ -15,15 +15,7 @@ named `SparkModel` that extends the Pydantic's `BaseModel`.
 ## Features
 
 - Conversion from Pydantic model to PySpark schema.
-- Determination of nullable types.
-- Customizable type mapping between Python and PySpark data types.
-
-## Dependencies
-
-This module aims to have a small dependency footprint:
-- `pydantic`
-- `pyspark`
-- Python's built-in `datetime`, `decimal`, `types`, and `typing` modules
+- Generate fake data from your model with optional configuration of each field
 
 ## Usage
 
@@ -47,19 +39,99 @@ Pydantic has existing models for generating json schemas (with `model_json_schem
 generate a PySpark schema from the model fields using the `model_spark_schema()` method:
 
 ```python
-my_model = MyModel()
-spark_schema = my_model.model_spark_schema()
+spark_schema = MyModel.model_spark_schema()
 ```
 
 Provides this schema:
 
 ```python
 StructType([
-    StructField('name', StringType(), True),
-    StructField('age', IntegerType(), True),
-    StructField('hobbies', ArrayType(StringType(), False), True)
+    StructField('name', StringType(), False),
+    StructField('age', IntegerType(), False),
+    StructField('hobbies', ArrayType(StringType(), False), False)
 ])
 ```
+
+### Generating fake data
+Once you've defined a schema you can generate some fake data for your class. Useful for testing purposes as well as for
+populating development environments with non-production data. 
+
+Using the same schema above:
+```python
+from pyspark.sql import SparkSession
+from sparkdantic import SparkModel
+from typing import List
+
+class MyModel(SparkModel):
+    name: str
+    age: int
+    hobbies: List[str]
+    
+spark = SparkSession.builder.getOrCreate()
+    
+fake_data = MyModel.generate_data(spark)
+```
+Using the defaults you'll get fake data that looks something like this (as a Spark DataFrame):
+
+```python
+Row(name='0', age=0, hobbies=['0']), 
+Row(name='1', age=1, hobbies=['1']), 
+Row(name='2', age=2, hobbies=['2']), 
+Row(name='3', age=3, hobbies=['3']), 
+Row(name='4', age=4, hobbies=['4']), 
+Row(name='5', age=5, hobbies=['5']), 
+Row(name='6', age=6, hobbies=['6']), 
+Row(name='7', age=7, hobbies=['7']), 
+Row(name='8', age=8, hobbies=['8']), 
+Row(name='9', age=9, hobbies=['9']),
+```
+
+Definitely fake data, but not very useful for replicating the real world. We can provide some more info so that it generates
+som more realistic figures:
+
+```python
+from pyspark.sql import SparkSession
+from sparkdantic import SparkModel, ColumnGenerationSpec
+from typing import List
+
+class MyModel(SparkModel):
+    name: str
+    age: int
+    hobbies: List[str]
+    
+spark = SparkSession.builder.getOrCreate()
+
+specs = {
+    'name': ColumnGenerationSpec(values=['Bob', 'Alice'], weights=[0.5, 0.5]),
+    'age': ColumnGenerationSpec(min_value=20, max_value=65),
+    'hobbies': ColumnGenerationSpec(values=['music', 'movies', 'sport'])
+}
+
+fake_data = MyModel.generate_data(spark)
+```
+
+Let's breakdown what we've generated:
+    `name`: We give it a list of two possible values for this field. The weights value determines how often to choose a value.
+    In our case, it chooses one of the two values an equal amount (50% of the rows will be Bob, 50% Alice)
+    `age`: Choose an int between 20 and 65
+    `hobbies`: Choose a value from the list at random
+
+There are plenty more options available. Have a look at the [library we wrap for this functionality](https://databrickslabs.github.io/dbldatagen/public_docs/index.html) 
+for more examples and information on what you can generate
+
+```python
+Row(name='Bob', age=20, hobbies=['music']),
+Row(name='Bob', age=21, hobbies=['movies']),
+Row(name='Bob', age=22, hobbies=['sport']),
+Row(name='Bob', age=23, hobbies=['music']),
+Row(name='Bob', age=24, hobbies=['movies']),
+Row(name='Alice', age=25, hobbies=['sport']),
+Row(name='Alice', age=26, hobbies=['music']),
+Row(name='Alice', age=27, hobbies=['movies']),
+Row(name='Alice', age=28, hobbies=['sport']),
+Row(name='Alice', age=29, hobbies=['music'])
+```
+
 
 ## Contributing
 Contributions welcome! If you would like to add a new feature / fix a bug feel free to raise a PR and tag me (`mitchelllisle`) as
