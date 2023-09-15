@@ -87,7 +87,7 @@ Row(name='9', age=9, hobbies=['9']),
 ```
 
 Definitely fake data, but not very useful for replicating the real world. We can provide some more info so that it generates
-som more realistic figures:
+some more realistic figures:
 
 ```python
 from pyspark.sql import SparkSession
