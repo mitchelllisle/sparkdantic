@@ -104,17 +104,17 @@ spark = SparkSession.builder.getOrCreate()
 specs = {
     'name': ColumnGenerationSpec(values=['Bob', 'Alice'], weights=[0.5, 0.5]),
     'age': ColumnGenerationSpec(min_value=20, max_value=65),
-    'hobbies': ColumnGenerationSpec(values=['music', 'movies', 'sport'])
+    'hobbies': ColumnGenerationSpec(values=['music', 'movies', 'sport'], num_features=2)
 }
 
-fake_data = MyModel.generate_data(spark)
+fake_data = MyModel.generate_data(spark, specs=specs)
 ```
 
 Let's breakdown what we've generated:
-    `name`: We give it a list of two possible values for this field. The weights value determines how often to choose a value.
+- `name`: We give it a list of two possible values for this field. The weights value determines how often to choose a value.
     In our case, it chooses one of the two values an equal amount (50% of the rows will be Bob, 50% Alice)
-    `age`: Choose an int between 20 and 65
-    `hobbies`: Choose a value from the list at random
+- `age`: Choose an int between 20 and 65
+- `hobbies`: Choose a value from the list at random
 
 There are plenty more options available. Have a look at the [library we wrap for this functionality](https://databrickslabs.github.io/dbldatagen/public_docs/index.html) 
 for more examples and information on what you can generate
