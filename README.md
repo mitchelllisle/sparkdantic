@@ -159,7 +159,11 @@ we will be strict on maintaining a 100% test coverage.
 
 > ℹ️ Versioning: We use `bumpversion` to maintain the version across various files. If you submit a PR please run bumpversion to
 > the following rules:
-> `bumpversion major`: If you are making breaking changes (that is, anyone who already uses this library can no longer rely on
+> - `bumpversion major`: If you are making breaking changes (that is, anyone who already uses this library can no longer rely on
 > existing methods / functionality)
-> `bumpversion minor`: If you are adding functionality or features that maintain existing methods and features
-> `bumpversion patch`: If you are fixing a bug or making some other small change
+> - `bumpversion minor`: If you are adding functionality or features that maintain existing methods and features
+> - `bumpversion patch`: If you are fixing a bug or making some other small change
+
+> Note: ⚠️ You can ignore bumping the version if you like. I periodically do releases of any dependency updates anyway so
+> if you can wait a couple of days for your code to be pushed to PyPi then just submit the change and I'll make sure it's
+> included in the next release. I'll do my best to make sure it's released ASAP after your PR is merged.
