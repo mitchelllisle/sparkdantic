@@ -1,5 +1,6 @@
 from datetime import date, datetime, timedelta
 from decimal import Decimal
+from enum import IntEnum
 from typing import List, Optional
 
 from pyspark.sql.types import (
@@ -20,6 +21,11 @@ from pyspark.sql.types import (
 from sparkdantic.model import SparkModel
 
 
+class IntTestEnum(IntEnum):
+    X = 1
+    Y = 2
+
+
 class MyModel(SparkModel):
     k: str
 
@@ -36,6 +42,7 @@ class ListValuesModel(SparkModel):
     ii: List[timedelta]
     oo: List[MyModel]
     o1: Optional[List[MyModel]]
+    o2: Optional[List[IntTestEnum]]
 
 
 def test_list_values():
@@ -56,6 +63,7 @@ def test_list_values():
             StructField(
                 'o1', ArrayType(StructType([StructField('k', StringType(), False)]), True), True
             ),
+            StructField('o2', ArrayType(IntegerType(), True), True),
         ]
     )
     generated_schema = ListValuesModel.model_spark_schema()

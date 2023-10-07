@@ -3,6 +3,7 @@ import sys
 from collections import deque
 from datetime import date, datetime, timedelta
 from decimal import Decimal
+from enum import Enum
 from types import MappingProxyType
 from typing import Dict, List, Optional, Tuple, Type, Union, get_args, get_origin
 
@@ -31,9 +32,15 @@ from pyspark.sql.types import (
 from sparkdantic.generation import ColumnGenerationSpec
 
 if sys.version_info > (3, 10):
-    from types import UnionType
+    from types import UnionType  # pragma: no cover
 else:
     UnionType = Union  # pragma: no cover
+
+if sys.version_info > (3, 11):
+    from enum import EnumType  # pragma: no cover
+else:
+    EnumType = Type[Enum]  # pragma: no cover
+
 
 native_spark_types = [
     ArrayType,
@@ -70,6 +77,8 @@ type_map = MappingProxyType(
     }
 )
 
+MixinType = Union[Type[int], Type[str]]
+
 ColumnSpecs = Optional[Dict[str, ColumnGenerationSpec]]
 
 
@@ -80,10 +89,11 @@ class SparkModel(BaseModel):
         model_spark_schema: Generates a PySpark schema from the model fields.
         _is_nullable: Determines if a type is nullable and returns the type without the Union.
         _get_spark_type: Returns the corresponding PySpark data type for a given Python type, considering nullability.
+        _get_enum_mixin_type: Returns the mixin type of an Enum.
         _type_to_spark: Converts a given Python type to a corresponding PySpark data type.
     """
 
-    model_config = ConfigDict(arbitrary_types_allowed=True)
+    model_config = ConfigDict(arbitrary_types_allowed=True, use_enum_values=True)
     _mapped_field: ModelPrivateAttr = deque()
     _non_standard_fields: ModelPrivateAttr = {'value', 'mapping', 'mapping_source'}
 
@@ -119,7 +129,11 @@ class SparkModel(BaseModel):
 
     @classmethod
     def _add_column_specs(
-        cls, generator: dg.DataGenerator, spec: ColumnGenerationSpec, name: str, field: Field
+        cls,
+        generator: dg.DataGenerator,
+        spec: ColumnGenerationSpec,
+        name: str,
+        field: Field,
     ):
         """Adds column specifications to the DataGenerator.
 
@@ -140,8 +154,8 @@ class SparkModel(BaseModel):
             if spec.mapping:
                 if spec.mapping_source is None:
                     raise ValueError(
-                        'You have specified a mapping but not mapping_source. You must pass ina valid column name to'
-                        ' map values to.'
+                        'You have specified a mapping but not mapping_source. '
+                        'You must pass in a valid column name to map values to.'
                     )
                 cls._mapped_field.default.append((name, spec.mapping, spec.mapping_source))
 
@@ -151,7 +165,9 @@ class SparkModel(BaseModel):
                 nullable=nullable,
                 structType=container,
                 **spec.model_dump(
-                    by_alias=True, exclude_none=True, exclude=cls._non_standard_fields.default
+                    by_alias=True,
+                    exclude_none=True,
+                    exclude=cls._non_standard_fields.default,
                 ),
             )
         else:
@@ -175,7 +191,11 @@ class SparkModel(BaseModel):
 
     @classmethod
     def generate_data(
-        cls, spark: SparkSession, n_rows: int = 100, specs: Optional[ColumnSpecs] = None, **kwargs
+        cls,
+        spark: SparkSession,
+        n_rows: int = 100,
+        specs: Optional[ColumnSpecs] = None,
+        **kwargs,
     ) -> DataFrame:
         """Generates PySpark DataFrame based on the schema and the column specs.
 
@@ -191,6 +211,15 @@ class SparkModel(BaseModel):
         generator = dg.DataGenerator(spark, rows=n_rows, **kwargs)
         for name, field in cls.model_fields.items():
             spec = specs.get(name)
+
+            if (
+                spec is None
+                and inspect.isclass(field.annotation)
+                and issubclass(field.annotation, Enum)
+            ):
+                # For Enums, default to using all values specified in the Enum
+                spec = ColumnGenerationSpec(values=[item.value for item in field.annotation])
+
             cls._add_column_specs(generator, spec, name, field)  # type: ignore
         generated = generator.build()
         return cls._post_mapping_process(generated)
@@ -243,7 +272,7 @@ class SparkModel(BaseModel):
         return (inspect.isclass(value)) and (issubclass(value, SparkModel))
 
     @staticmethod
-    def _get_spark_type(t: Type, nullable: bool) -> DataType:
+    def _get_spark_type(t: Type, nullable: bool) -> Type[DataType]:
         """Returns the corresponding PySpark data type for a given Python type, considering nullability.
 
         Args:
@@ -252,10 +281,36 @@ class SparkModel(BaseModel):
 
         Returns:
             DataType: The corresponding PySpark data type.
+
+        Raises:
+            TypeError: If the type is not recognized in the type map.
         """
-        spark_type = type_map[t]
+        spark_type = type_map.get(t)
+        if spark_type is None:
+            raise TypeError(f'Type {t} not recognized')
+
         spark_type.nullable = nullable
-        return spark_type()
+        return spark_type
+
+    @classmethod
+    def _get_enum_mixin_type(cls, t: EnumType) -> MixinType:
+        """Returns the mixin type of an Enum.
+
+        Args:
+            t (EnumType): The Enum to get the mixin type from.
+
+        Returns:
+            MixinType: The type mixed with the Enum.
+
+        Raises:
+            TypeError: If the mixin type is not supported (int and str are supported).
+        """
+        if issubclass(t, int):
+            return int
+        elif issubclass(t, str):
+            return str
+        else:
+            raise TypeError(f'Enum {t} is not supported. Only int and str mixins are supported.')
 
     @classmethod
     def _type_to_spark(cls, t: Type) -> Tuple[DataType, bool]:
@@ -266,32 +321,32 @@ class SparkModel(BaseModel):
 
         Returns:
             DataType: The corresponding PySpark data type.
-
-        Raises:
-            TypeError: If the type is not recognized in the type map.
         """
         nullable, t = cls._is_nullable(t)
 
         args = get_args(t)
         origin = get_origin(t)
 
+        # Convert complex types
         if origin is list:
-            if cls._is_spark_model_subclass(args[0]):
-                array_type = args[0].model_spark_schema()
+            inner_type = args[0]
+            if cls._is_spark_model_subclass(inner_type):
+                array_type = inner_type.model_spark_schema()
             else:
-                array_type = cls._get_spark_type(args[0], nullable)
+                # Check if it's an accepted Enum
+                array_type, _ = cls._type_to_spark(inner_type)
             return ArrayType(array_type, nullable), nullable
         elif origin is dict:
             key_type, _ = cls._type_to_spark(args[0])
             value_type, _ = cls._type_to_spark(args[1])
             return MapType(key_type, value_type, nullable), nullable
 
-        try:
-            if t in native_spark_types:
-                spark_type = t
-            else:
-                spark_type = type_map[t]
+        if issubclass(t, Enum):
+            t = cls._get_enum_mixin_type(t)
+
+        if t in native_spark_types:
+            spark_type = t
             spark_type.nullable = nullable
-            return spark_type(), nullable
-        except KeyError:
-            raise TypeError(f'Type {t} not recognized')
+        else:
+            spark_type = cls._get_spark_type(t, nullable)
+        return spark_type(), nullable

@@ -1,5 +1,6 @@
 from datetime import date, datetime, timedelta
 from decimal import Decimal
+from enum import IntEnum
 from typing import Dict
 
 from pyspark.sql.types import (
@@ -20,6 +21,11 @@ from pyspark.sql.types import (
 from sparkdantic.model import SparkModel
 
 
+class IntTestEnum(IntEnum):
+    X = 1
+    Y = 2
+
+
 class DictValuesModel(SparkModel):
     s: Dict[int, int]
     t: Dict[float, float]
@@ -30,6 +36,7 @@ class DictValuesModel(SparkModel):
     bb: Dict[date, date]
     ff: Dict[datetime, datetime]
     jj: Dict[timedelta, timedelta]
+    kk: Dict[IntTestEnum, IntTestEnum]
 
 
 def test_dict_values():
@@ -46,6 +53,7 @@ def test_dict_values():
             StructField(
                 'jj', MapType(DayTimeIntervalType(0, 3), DayTimeIntervalType(0, 3), False), False
             ),
+            StructField('kk', MapType(IntegerType(), IntegerType(), False), False),
         ]
     )
 
