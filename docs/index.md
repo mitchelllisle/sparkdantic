@@ -23,7 +23,7 @@ named `SparkModel` that extends the Pydantic's `BaseModel`.
 This module aims to have a small dependency footprint:
 - `pydantic`
 - `pyspark`
-- Python's built-in `datetime`, `decimal`, `enum`, `types`, and `typing` modules
+- Python's built-in `datetime`, `decimal`, `types`, and `typing` modules
 
 ## Usage
 
@@ -39,19 +39,6 @@ class MyModel(SparkModel):
     name: str
     age: int
     hobbies: List[str]
-```
-
-> ℹ️ `Enum`s are supported but they must be mixed with either `int` (`IntEnum` in Python ≥ 3.10) or `str` (`StrEnum`, in Python ≥ 3.11) built-in types:
-
-```python
-from enum import Enum
-
-class Switch(int, Enum):
-    OFF = 0
-    ON = 1
-
-class MyEnumModel(SparkModel):
-    switch: Switch
 ```
 
 ### Generating a PySpark Schema
