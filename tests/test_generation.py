@@ -1,3 +1,4 @@
+from enum import Enum, IntEnum
 from typing import Dict, List, Optional, Union, get_args, get_origin
 
 import dbldatagen as dg
@@ -7,6 +8,11 @@ from pyspark.sql import SparkSession
 from pyspark.sql import functions as f
 
 from sparkdantic import ColumnGenerationSpec, SparkModel
+
+
+class IntTestEnum(IntEnum):
+    X = 1
+    Y = 2
 
 
 class SingleFieldModel(SparkModel):
@@ -21,6 +27,7 @@ class SampleModel(SparkModel):
     jobs: List[str]
     map: Dict[str, str]
     single_value: int
+    enum: IntTestEnum
 
 
 def test_generate_data(spark: SparkSession):
@@ -48,6 +55,8 @@ def _check_types_and_subtypes_match(field, row, name):
                 assert isinstance(row[name], container)
         else:
             assert isinstance(row[name], inner[0])
+    elif issubclass(field.annotation, Enum):
+        assert row[name] in {item.value for item in field.annotation}
     else:
         assert isinstance(row[name], field.annotation)
 
@@ -69,6 +78,7 @@ def test_columns_with_specs(spark: SparkSession, faker: Faker):
         'single_value': ColumnGenerationSpec(value=1),
         'logic_number': ColumnGenerationSpec(values=[1, 2]),
         'logic': ColumnGenerationSpec(mapping={1: 'a', 2: 'b'}, mapping_source='logic_number'),
+        'enum': ColumnGenerationSpec(values=[IntTestEnum.X.value]),
     }
     data_gen = SampleModel.generate_data(spark, specs=specs, n_rows=n_rows).collect()
     for row in data_gen:
@@ -80,6 +90,7 @@ def test_columns_with_specs(spark: SparkSession, faker: Faker):
             assert row.logic == 'a'
         if row.logic_number == 2:
             assert row.logic == 'b'
+        assert row.enum == IntTestEnum.X
         for name, field in SampleModel.model_fields.items():
             _check_types_and_subtypes_match(field, row, name)
 

@@ -1,5 +1,6 @@
 from datetime import date, datetime, timedelta
 from decimal import Decimal
+from enum import IntEnum
 from typing import Optional
 
 from pyspark.sql.types import (
@@ -19,6 +20,11 @@ from pyspark.sql.types import (
 from sparkdantic.model import SparkModel
 
 
+class IntTestEnum(IntEnum):
+    X = 1
+    Y = 2
+
+
 class OptionalValuesModel(SparkModel):
     g: Optional[int]
     h: Optional[float]
@@ -29,6 +35,7 @@ class OptionalValuesModel(SparkModel):
     z: Optional[date]
     dd: Optional[datetime]
     hh: Optional[timedelta]
+    ii: Optional[IntTestEnum]
 
 
 def test_optional_values():
@@ -43,6 +50,7 @@ def test_optional_values():
             StructField('z', DateType(), True),
             StructField('dd', TimestampType(), True),
             StructField('hh', DayTimeIntervalType(0, 3), True),
+            StructField('ii', IntegerType(), True),
         ]
     )
     generated_schema = OptionalValuesModel.model_spark_schema()
