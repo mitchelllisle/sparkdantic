@@ -346,13 +346,13 @@ class SparkModel(BaseModel):
             # types of values within Literal. If they are all the same, use that type as our new type.
             literal_arg_types = set(map(lambda a: type(a), args))
             if len(literal_arg_types) > 1:
-                raise ValueError(
+                raise TypeError(
                     'Your model has a `Literal` type with multiple args of different types. Fields defined with '
                     '`Literal` must have one consistent arg type'
                 )
             t = literal_arg_types.pop()
 
-        if inspect.isclass(t) and issubclass(t, Enum):
+        if issubclass(t, Enum):
             t = cls._get_enum_mixin_type(t)
 
         if t in native_spark_types:

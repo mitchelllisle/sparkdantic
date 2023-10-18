@@ -2,6 +2,7 @@ from datetime import date, datetime, timedelta
 from decimal import Decimal
 from typing import Literal, Optional
 
+import pytest
 from pydantic import BaseModel, SecretBytes, SecretStr
 from pyspark.sql.types import (
     BinaryType,
@@ -56,7 +57,7 @@ def test_raw_values():
     assert generated_schema == expected_schema
 
 
-def test_mixin_class():
+def test_literal():
     expected = StructType(
         [
             StructField('is_this_a_field', StringType(), False),
@@ -72,3 +73,11 @@ def test_mixin_class():
 
     schema = SparkMyClass.model_spark_schema()
     assert schema == expected
+
+
+def test_inconsistent_literal():
+    class MyClass(SparkModel):
+        is_this_a_field: Literal['yes', 1]
+
+    with pytest.raises(TypeError):
+        MyClass.model_spark_schema()
