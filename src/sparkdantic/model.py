@@ -286,8 +286,6 @@ class SparkModel(BaseModel):
         Raises:
             TypeError: If the type is not recognized in the type map.
         """
-        # if t is typing.Literal:
-
         spark_type = type_map.get(t)
         if spark_type is None:
             raise TypeError(f'Type {t} not recognized')
