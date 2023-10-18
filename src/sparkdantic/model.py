@@ -1,5 +1,6 @@
 import inspect
 import sys
+import typing
 from collections import deque
 from datetime import date, datetime, timedelta
 from decimal import Decimal
@@ -285,6 +286,8 @@ class SparkModel(BaseModel):
         Raises:
             TypeError: If the type is not recognized in the type map.
         """
+        # if t is typing.Literal:
+
         spark_type = type_map.get(t)
         if spark_type is None:
             raise TypeError(f'Type {t} not recognized')
@@ -340,8 +343,16 @@ class SparkModel(BaseModel):
             key_type, _ = cls._type_to_spark(args[0])
             value_type, _ = cls._type_to_spark(args[1])
             return MapType(key_type, value_type, nullable), nullable
+        elif origin is typing.Literal:
+            literal_arg_types = set(map(lambda a: type(a), args))
+            if len(literal_arg_types) > 1:
+                raise ValueError(
+                    'Your model has a `Literal` type with multiple args of different types. Fields defined with '
+                    '`Literal` must have one consistent arg type'
+                )
+            t = literal_arg_types.pop()
 
-        if issubclass(t, Enum):
+        if inspect.isclass(t) and issubclass(t, Enum):
             t = cls._get_enum_mixin_type(t)
 
         if t in native_spark_types:
