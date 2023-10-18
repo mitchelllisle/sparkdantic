@@ -342,7 +342,7 @@ class SparkModel(BaseModel):
             value_type, _ = cls._type_to_spark(args[1])
             return MapType(key_type, value_type, nullable), nullable
         elif origin is typing.Literal:
-            # PySpark doesn't have an equivalent type for Literal. To allow Literal usage with a model check all the
+            # PySpark doesn't have an equivalent type for Literal. To allow Literal usage with a model we check all the
             # types of values within Literal. If they are all the same, use that type as our new type.
             literal_arg_types = set(map(lambda a: type(a), args))
             if len(literal_arg_types) > 1:
