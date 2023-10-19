@@ -1,5 +1,6 @@
 import inspect
 import sys
+import typing
 from collections import deque
 from datetime import date, datetime, timedelta
 from decimal import Decimal
@@ -340,6 +341,16 @@ class SparkModel(BaseModel):
             key_type, _ = cls._type_to_spark(args[0])
             value_type, _ = cls._type_to_spark(args[1])
             return MapType(key_type, value_type, nullable), nullable
+        elif origin is typing.Literal:
+            # PySpark doesn't have an equivalent type for Literal. To allow Literal usage with a model we check all the
+            # types of values within Literal. If they are all the same, use that type as our new type.
+            literal_arg_types = set(map(lambda a: type(a), args))
+            if len(literal_arg_types) > 1:
+                raise TypeError(
+                    'Your model has a `Literal` type with multiple args of different types. Fields defined with '
+                    '`Literal` must have one consistent arg type'
+                )
+            t = literal_arg_types.pop()
 
         if issubclass(t, Enum):
             t = cls._get_enum_mixin_type(t)

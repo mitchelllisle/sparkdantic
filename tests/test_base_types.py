@@ -1,7 +1,9 @@
 from datetime import date, datetime, timedelta
 from decimal import Decimal
+from typing import Literal, Optional
 
-from pydantic import SecretBytes, SecretStr
+import pytest
+from pydantic import BaseModel, SecretBytes, SecretStr
 from pyspark.sql.types import (
     BinaryType,
     BooleanType,
@@ -53,3 +55,29 @@ def test_raw_values():
     )
     generated_schema = RawValuesModel.model_spark_schema()
     assert generated_schema == expected_schema
+
+
+def test_literal():
+    expected = StructType(
+        [
+            StructField('is_this_a_field', StringType(), False),
+            StructField('is_this_another_field', StringType(), True),
+        ]
+    )
+
+    class MyClass(BaseModel):
+        is_this_a_field: Literal['yes', 'no']
+
+    class SparkMyClass(SparkModel, MyClass):
+        is_this_another_field: Optional[Literal['yes', 'no']]
+
+    schema = SparkMyClass.model_spark_schema()
+    assert schema == expected
+
+
+def test_inconsistent_literal():
+    class MyClass(SparkModel):
+        is_this_a_field: Literal['yes', 1]
+
+    with pytest.raises(TypeError):
+        MyClass.model_spark_schema()
