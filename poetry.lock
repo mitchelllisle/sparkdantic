@@ -517,13 +517,13 @@ pyflakes = ">=3.1.0,<3.2.0"
 
 [[package]]
 name = "flake8-bugbear"
-version = "23.9.16"
+version = "23.11.26"
 description = "A plugin for flake8 finding likely bugs and design problems in your program. Contains warnings that don't belong in pyflakes and pycodestyle."
 optional = false
 python-versions = ">=3.8.1"
 files = [
-    {file = "flake8-bugbear-23.9.16.tar.gz", hash = "sha256:90cf04b19ca02a682feb5aac67cae8de742af70538590509941ab10ae8351f71"},
-    {file = "flake8_bugbear-23.9.16-py3-none-any.whl", hash = "sha256:b182cf96ea8f7a8595b2f87321d7d9b28728f4d9c3318012d896543d19742cb5"},
+    {file = "flake8-bugbear-23.11.26.tar.gz", hash = "sha256:8e36119071bab626b6dab834fadd6d03c06090e9b189e67b4905821df8212fee"},
+    {file = "flake8_bugbear-23.11.26-py3-none-any.whl", hash = "sha256:55d00c8a3c48c995c1f0ec0df54f8c9cf530c06035ce53975a03517d2e7f53e5"},
 ]
 
 [package.dependencies]
@@ -968,13 +968,13 @@ mkdocs = ">=1.0.3"
 
 [[package]]
 name = "mkdocs-material"
-version = "9.4.12"
+version = "9.4.14"
 description = "Documentation that simply works"
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "mkdocs_material-9.4.12-py3-none-any.whl", hash = "sha256:1adf4e49a6ae59b333d82acedef176f381c27be808bba82074f88dfefc4a5b01"},
-    {file = "mkdocs_material-9.4.12.tar.gz", hash = "sha256:378fae65dbd47e422cabb912f417b3a67db087d150a601dc7b94dbcc26981cbe"},
+    {file = "mkdocs_material-9.4.14-py3-none-any.whl", hash = "sha256:dbc78a4fea97b74319a6aa9a2f0be575a6028be6958f813ba367188f7b8428f6"},
+    {file = "mkdocs_material-9.4.14.tar.gz", hash = "sha256:a511d3ff48fa8718b033e7e37d17abd9cc1de0fdf0244a625ca2ae2387e2416d"},
 ]
 
 [package.dependencies]
