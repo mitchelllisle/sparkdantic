@@ -3,7 +3,7 @@
 [![codecov](https://codecov.io/gh/mitchelllisle/sparkdantic/graph/badge.svg?token=O6PPQX4FEX)](https://codecov.io/gh/mitchelllisle/sparkdantic)
 [![PyPI version](https://badge.fury.io/py/sparkdantic.svg)](https://badge.fury.io/py/sparkdantic)
 
-> 1️⃣ version: 0.15.0
+> 1️⃣ version: 0.16.0
 
 > ✍️ author: Mitchell Lisle
 
