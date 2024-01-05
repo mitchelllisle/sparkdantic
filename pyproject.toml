@@ -20,7 +20,7 @@ pyparsing = "^3.1.1"
 [tool.poetry.group.dev.dependencies]
 bumpversion = "^0.6.0"
 twine = "^4.0.2"
-flake8 = "^6.0.0"
+flake8 = ">=6,<8"
 dlint = "^0.14.0"
 mypy = "^1.1.1"
 pre-commit = "^3.2.1"
