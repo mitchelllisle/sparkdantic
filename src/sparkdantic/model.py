@@ -6,7 +6,7 @@ from datetime import date, datetime, timedelta
 from decimal import Decimal
 from enum import Enum
 from types import MappingProxyType
-from typing import Dict, List, Optional, Tuple, Type, Union, get_args, get_origin
+from typing import Annotated, Dict, List, Optional, Tuple, Type, Union, get_args, get_origin
 
 import dbldatagen as dg
 from pydantic import BaseModel, ConfigDict, Field, SecretBytes, SecretStr
@@ -351,6 +351,9 @@ class SparkModel(BaseModel):
                     '`Literal` must have one consistent arg type'
                 )
             t = literal_arg_types.pop()
+        elif origin is Annotated:
+            # first arg of annotated type is the type, second is metadata that we don't do anything with (yet)
+            t = args[0]
 
         if issubclass(t, Enum):
             t = cls._get_enum_mixin_type(t)
