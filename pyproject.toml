@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "sparkdantic"
-version = "0.16.0"
+version = "0.17.0"
 description = "A pydantic -> spark schema library"
 authors = ["Mitchell Lisle <m.lisle90@gmail.com>"]
 readme = "README.md"
@@ -20,12 +20,12 @@ pyparsing = "^3.1.1"
 [tool.poetry.group.dev.dependencies]
 bumpversion = "^0.6.0"
 twine = "^4.0.2"
-flake8 = "^6.0.0"
+flake8 = ">=6,<8"
 dlint = "^0.14.0"
 mypy = "^1.1.1"
 pre-commit = "^3.2.1"
 setuptools = ">=68,<70"
-flake8-bugbear = "^23.3.23"
+flake8-bugbear = ">=23.3.23,<25.0.0"
 pep8-naming = "^0.13.3"
 
 
@@ -44,7 +44,7 @@ pytest = "^7.2.2"
 pytest-dotenv = "^0.5.2"
 pytest-cov = "^4.0.0"
 hypothesis = "^6.82.0"
-faker = ">=19.3.1,<22.0.0"
+faker = ">=19.3.1,<23.0.0"
 
 [build-system]
 requires = ["poetry-core"]

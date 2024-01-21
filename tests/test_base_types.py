@@ -1,9 +1,9 @@
 from datetime import date, datetime, timedelta
 from decimal import Decimal
-from typing import Literal, Optional
+from typing import Annotated, Literal, Optional
 
 import pytest
-from pydantic import BaseModel, SecretBytes, SecretStr
+from pydantic import BaseModel, Field, SecretBytes, SecretStr
 from pyspark.sql.types import (
     BinaryType,
     BooleanType,
@@ -81,3 +81,17 @@ def test_inconsistent_literal():
 
     with pytest.raises(TypeError):
         MyClass.model_spark_schema()
+
+
+def test_annotated_type():
+    class MyClass(SparkModel):
+        optional_field: Optional[Annotated[int, Field(lt=1, gt=10)]]
+        required_field: Annotated[int, Field(lt=1, gt=10)]
+
+    schema = MyClass.model_spark_schema()
+    assert schema == StructType(
+        [
+            StructField('optional_field', IntegerType(), True),
+            StructField('required_field', IntegerType(), False),
+        ]
+    )
