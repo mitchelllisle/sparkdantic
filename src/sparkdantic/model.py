@@ -270,7 +270,10 @@ class SparkModel(BaseModel):
         Returns:
             bool: True if it is a subclass, otherwise False.
         """
-        return (inspect.isclass(value)) and (issubclass(value, SparkModel))
+        try:
+            return (inspect.isclass(value)) and (issubclass(value, SparkModel))
+        except TypeError:
+            return False
 
     @staticmethod
     def _get_spark_type(t: Type, nullable: bool) -> Type[DataType]:
