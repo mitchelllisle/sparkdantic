@@ -21,6 +21,12 @@ from pyspark.sql.types import (
 from sparkdantic.model import SparkModel
 
 
+class DecimalModel(SparkModel):
+    a: Decimal
+    b: Decimal = Field(decimal_places=2)
+    c: Decimal = Field(decimal_places=2, max_digits=5)
+
+
 class RawValuesModel(SparkModel):
     a: int
     b: float
@@ -95,3 +101,15 @@ def test_annotated_type():
             StructField('required_field', IntegerType(), False),
         ]
     )
+
+
+def test_decimal_types():
+    expected_schema = StructType(
+        [
+            StructField('a', DecimalType(10, 0), False),
+            StructField('b', DecimalType(10, 2), False),
+            StructField('c', DecimalType(5, 2), False),
+        ]
+    )
+    generated_schema = DecimalModel.model_spark_schema()
+    assert generated_schema == expected_schema

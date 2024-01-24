@@ -108,7 +108,7 @@ class SparkModel(BaseModel):
         Returns:
             Tuple[DataType, Optional[str], bool]: The corresponding Spark DataType, container type, and nullability.
         """
-        spark_type, nullable = cls._type_to_spark(t)
+        spark_type, nullable = cls._type_to_spark(t, [])
         if isinstance(spark_type, ArrayType):
             return spark_type.elementType, ArrayType.typeName(), nullable
         return spark_type, None, nullable
@@ -238,7 +238,7 @@ class SparkModel(BaseModel):
             if cls._is_spark_model_subclass(t):
                 fields.append(StructField(k, t.model_spark_schema()))  # type: ignore
             else:
-                t, nullable = cls._type_to_spark(v.annotation)
+                t, nullable = cls._type_to_spark(v.annotation, v.metadata)
                 _struct_field = StructField(k, t, nullable)
                 fields.append(_struct_field)
         return StructType(fields)
@@ -317,7 +317,7 @@ class SparkModel(BaseModel):
             raise TypeError(f'Enum {t} is not supported. Only int and str mixins are supported.')
 
     @classmethod
-    def _type_to_spark(cls, t: Type) -> Tuple[DataType, bool]:
+    def _type_to_spark(cls, t: Type, metadata) -> Tuple[DataType, bool]:
         """Converts a given Python type to a corresponding PySpark data type.
 
         Args:
@@ -327,7 +327,7 @@ class SparkModel(BaseModel):
             DataType: The corresponding PySpark data type.
         """
         nullable, t = cls._is_nullable(t)
-
+        meta = None if len(metadata) < 1 else metadata.pop()
         args = get_args(t)
         origin = get_origin(t)
 
@@ -338,11 +338,11 @@ class SparkModel(BaseModel):
                 array_type = inner_type.model_spark_schema()
             else:
                 # Check if it's an accepted Enum
-                array_type, _ = cls._type_to_spark(inner_type)
+                array_type, _ = cls._type_to_spark(inner_type, [])
             return ArrayType(array_type, nullable), nullable
         elif origin is dict:
-            key_type, _ = cls._type_to_spark(args[0])
-            value_type, _ = cls._type_to_spark(args[1])
+            key_type, _ = cls._type_to_spark(args[0], [])
+            value_type, _ = cls._type_to_spark(args[1], [])
             return MapType(key_type, value_type, nullable), nullable
         elif origin is typing.Literal:
             # PySpark doesn't have an equivalent type for Literal. To allow Literal usage with a model we check all the
@@ -362,8 +362,11 @@ class SparkModel(BaseModel):
             t = cls._get_enum_mixin_type(t)
 
         if t in native_spark_types:
-            spark_type = t
-            spark_type.nullable = nullable
+            spark_type = t(nullable=nullable)
         else:
-            spark_type = cls._get_spark_type(t, nullable)
-        return spark_type(), nullable
+            spark_type = cls._get_spark_type(t, nullable)()
+
+        if isinstance(spark_type, DecimalType):
+            if meta is not None:
+                spark_type = DecimalType(precision=meta.max_digits, scale=meta.decimal_places)
+        return spark_type, nullable
