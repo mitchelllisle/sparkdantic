@@ -362,10 +362,7 @@ class SparkModel(BaseModel):
             t = cls._get_enum_mixin_type(t)
 
         if t in native_spark_types:
-            if t is not DoubleType:
-                spark_type = t(nullable=nullable)
-            else:
-                spark_type = t()
+            spark_type = t()
         else:
             spark_type = cls._get_spark_type(t, nullable)()
 
