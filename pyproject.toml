@@ -19,7 +19,7 @@ pyparsing = "^3.1.1"
 
 [tool.poetry.group.dev.dependencies]
 bumpversion = "^0.6.0"
-twine = "^4.0.2"
+twine = ">=4.0.2,<6.0.0"
 flake8 = ">=6,<8"
 dlint = "^0.14.0"
 mypy = "^1.1.1"
@@ -40,11 +40,11 @@ pymdown-extensions = "^10.0.1"
 
 
 [tool.poetry.group.test.dependencies]
-pytest = "^7.2.2"
+pytest = ">=7.2.2,<9.0.0"
 pytest-dotenv = "^0.5.2"
 pytest-cov = "^4.0.0"
 hypothesis = "^6.82.0"
-faker = ">=19.3.1,<23.0.0"
+faker = ">=19.3.1,<24.0.0"
 
 [build-system]
 requires = ["poetry-core"]
