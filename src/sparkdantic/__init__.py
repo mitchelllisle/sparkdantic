@@ -3,4 +3,4 @@ __author__ = 'Mitchell Lisle'
 __email__ = 'm.lisle90@gmail.com'
 
 from sparkdantic.generation import ColumnGenerationSpec
-from sparkdantic.model import SparkModel
+from sparkdantic.model import ColumnSpecs, SparkModel

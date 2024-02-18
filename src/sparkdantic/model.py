@@ -90,7 +90,7 @@ class SparkModel(BaseModel):
         model_spark_schema: Generates a PySpark schema from the model fields.
         _is_nullable: Determines if a type is nullable and returns the type without the Union.
         _get_spark_type: Returns the corresponding PySpark data type for a given Python type, considering nullability.
-        _get_enum_mixin_type: Returns the mixin type of an Enum.
+        _get_enum_mixin_type: Returns the mixin type of Enum.
         _type_to_spark: Converts a given Python type to a corresponding PySpark data type.
     """
 
@@ -209,7 +209,7 @@ class SparkModel(BaseModel):
             DataFrame: The generated PySpark DataFrame.
         """
         specs = {} if not specs else specs
-        generator = dg.DataGenerator(spark, rows=n_rows, **kwargs)
+        generator = dg.DataGenerator(spark, seedColumnName='_seed_id', rows=n_rows, **kwargs)
         for name, field in cls.model_fields.items():
             spec = specs.get(name)
 
@@ -362,11 +362,16 @@ class SparkModel(BaseModel):
             t = cls._get_enum_mixin_type(t)
 
         if t in native_spark_types:
-            spark_type = t(nullable=nullable)
+            if t is not DoubleType:
+                spark_type = t(nullable=nullable)
+            else:
+                spark_type = t()
         else:
             spark_type = cls._get_spark_type(t, nullable)()
 
         if isinstance(spark_type, DecimalType):
             if meta is not None:
-                spark_type = DecimalType(precision=meta.max_digits, scale=meta.decimal_places)
+                max_digits = getattr(meta, 'max_digits', 10)
+                decimal_places = getattr(meta, 'decimal_places', 0)
+                spark_type = DecimalType(precision=max_digits, scale=decimal_places)
         return spark_type, nullable
