@@ -1,16 +1,13 @@
 import inspect
 import sys
 import typing
-from collections import deque
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 from enum import Enum
 from types import MappingProxyType
-from typing import Annotated, Dict, List, Optional, Tuple, Type, Union, get_args, get_origin
+from typing import Annotated, Dict, Tuple, Type, Union, get_args, get_origin
 
-import dbldatagen as dg
-from pydantic import BaseModel, ConfigDict, Field, SecretBytes, SecretStr
-from pydantic.fields import ModelPrivateAttr
+from pydantic import BaseModel, ConfigDict, SecretBytes, SecretStr
 from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql import functions as F  # noqa
 from pyspark.sql.types import (
@@ -30,7 +27,7 @@ from pyspark.sql.types import (
     TimestampType,
 )
 
-from sparkdantic.generation import ColumnGenerationSpec
+from sparkdantic.generation import GenerationSpec
 
 if sys.version_info > (3, 10):
     from types import UnionType  # pragma: no cover
@@ -80,7 +77,7 @@ type_map = MappingProxyType(
 
 MixinType = Union[Type[int], Type[str]]
 
-ColumnSpecs = Optional[Dict[str, ColumnGenerationSpec]]
+GenerationSpecs = Dict[str, GenerationSpec]
 
 
 class SparkModel(BaseModel):
@@ -95,135 +92,6 @@ class SparkModel(BaseModel):
     """
 
     model_config = ConfigDict(arbitrary_types_allowed=True, use_enum_values=True)
-    _mapped_field: ModelPrivateAttr = deque()
-    _non_standard_fields: ModelPrivateAttr = {'value', 'mapping', 'mapping_source'}
-
-    @classmethod
-    def _type_to_spark_type_specs(cls, t: Type) -> Tuple[DataType, Optional[str], bool]:
-        """Converts a given type to its corresponding Spark data type specifications.
-
-        Args:
-            t (Type): The Python type.
-
-        Returns:
-            Tuple[DataType, Optional[str], bool]: The corresponding Spark DataType, container type, and nullability.
-        """
-        spark_type, nullable = cls._type_to_spark(t, [])
-        if isinstance(spark_type, ArrayType):
-            return spark_type.elementType, ArrayType.typeName(), nullable
-        return spark_type, None, nullable
-
-    @classmethod
-    def _spec_weights_to_row_count(
-        cls, generator: dg.DataGenerator, weights: List[float]
-    ) -> List[int]:
-        """Converts weights to row count.
-
-        Args:
-            generator (dg.DataGenerator): The data generator.
-            weights (List[float]): The list of weights.
-
-        Returns:
-            List[int]: List of row counts.
-        """
-        return [int(generator.rowCount * w) for w in weights]
-
-    @classmethod
-    def _add_column_specs(
-        cls,
-        generator: dg.DataGenerator,
-        spec: ColumnGenerationSpec,
-        name: str,
-        field: Field,
-    ):
-        """Adds column specifications to the DataGenerator.
-
-        Args:
-            generator (dg.DataGenerator): The data generator.
-            spec (ColumnGenerationSpec): The column generation specifications.
-            name (str): The column name.
-            field (Field): The Pydantic field.
-        """
-        t, container, nullable = cls._type_to_spark_type_specs(field.annotation)
-        if spec:
-            if spec.weights:
-                spec.weights = cls._spec_weights_to_row_count(generator, spec.weights)  # type: ignore
-
-            if spec.value:
-                spec.values = [spec.value]
-
-            if spec.mapping:
-                if spec.mapping_source is None:
-                    raise ValueError(
-                        'You have specified a mapping but not mapping_source. '
-                        'You must pass in a valid column name to map values to.'
-                    )
-                cls._mapped_field.default.append((name, spec.mapping, spec.mapping_source))
-
-            generator.withColumn(
-                name,
-                colType=t,
-                nullable=nullable,
-                structType=container,
-                **spec.model_dump(
-                    by_alias=True,
-                    exclude_none=True,
-                    exclude=cls._non_standard_fields.default,
-                ),
-            )
-        else:
-            generator.withColumn(name, colType=t, nullable=nullable, structType=container)
-
-    @classmethod
-    def _post_mapping_process(cls, data: DataFrame) -> DataFrame:
-        """Processes the DataFrame after mapping.
-
-        Args:
-            data (DataFrame): The data frame to process.
-
-        Returns:
-            DataFrame: The processed DataFrame.
-        """
-        for _ in range(len(cls._mapped_field.default)):
-            target, mapping, source = cls._mapped_field.default.popleft()
-            mapping_expr = F.create_map([F.lit(x) for x in sum(mapping.items(), ())])
-            data = data.withColumn(target, mapping_expr.getItem(data[source]))
-        return data
-
-    @classmethod
-    def generate_data(
-        cls,
-        spark: SparkSession,
-        n_rows: int = 100,
-        specs: Optional[ColumnSpecs] = None,
-        **kwargs,
-    ) -> DataFrame:
-        """Generates PySpark DataFrame based on the schema and the column specs.
-
-        Args:
-            spark (SparkSession): The Spark session.
-            n_rows (int, optional): Number of rows. Defaults to 100.
-            specs (Optional[ColumnSpecs]): Column specifications. Defaults to None.
-
-        Returns:
-            DataFrame: The generated PySpark DataFrame.
-        """
-        specs = {} if not specs else specs
-        generator = dg.DataGenerator(spark, seedColumnName='_seed_id', rows=n_rows, **kwargs)
-        for name, field in cls.model_fields.items():
-            spec = specs.get(name)
-
-            if (
-                spec is None
-                and inspect.isclass(field.annotation)
-                and issubclass(field.annotation, Enum)
-            ):
-                # For Enums, default to using all values specified in the Enum
-                spec = ColumnGenerationSpec(values=[item.value for item in field.annotation])
-
-            cls._add_column_specs(generator, spec, name, field)  # type: ignore
-        generated = generator.build()
-        return cls._post_mapping_process(generated)
 
     @classmethod
     def model_spark_schema(cls) -> StructType:
@@ -298,7 +166,7 @@ class SparkModel(BaseModel):
 
     @classmethod
     def _get_enum_mixin_type(cls, t: EnumType) -> MixinType:
-        """Returns the mixin type of an Enum.
+        """Returns the mixin type of `Enum`.
 
         Args:
             t (EnumType): The Enum to get the mixin type from.
@@ -372,3 +240,20 @@ class SparkModel(BaseModel):
                 decimal_places = getattr(meta, 'decimal_places', 0)
                 spark_type = DecimalType(precision=max_digits, scale=decimal_places)
         return spark_type, nullable
+
+    @classmethod
+    def generate_data(
+        cls, spark: SparkSession, specs: GenerationSpecs, n_rows: int = 100
+    ) -> DataFrame:
+        initial_schema = StructType(
+            [StructField('__sparkdantic_row_id__', IntegerType(), nullable=False)]
+        )
+        data = spark.createDataFrame([(i,) for i in range(n_rows)], initial_schema)
+
+        schema = cls.model_spark_schema()
+        for col in schema.fields:
+            func = specs.get(col.name, None)
+            generator_udf = F.udf(func, col.dataType)
+            data = data.withColumn(col.name, generator_udf() if func is not None else F.lit(None))
+
+        return data.drop('__sparkdantic_row_id__')
