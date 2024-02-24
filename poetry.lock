@@ -434,18 +434,6 @@ test = ["certifi", "pretend", "pytest (>=6.2.0)", "pytest-benchmark", "pytest-co
 test-randomorder = ["pytest-randomly"]
 
 [[package]]
-name = "dbldatagen"
-version = "0.3.5"
-description = "Databricks Labs -  PySpark Synthetic Data Generator"
-category = "main"
-optional = false
-python-versions = ">=3.8.10"
-files = [
-    {file = "dbldatagen-0.3.5-py3-none-any.whl", hash = "sha256:75db379c68adda518fbe5d09184ca0756255f2086d8466fbdeaba29863b98349"},
-    {file = "dbldatagen-0.3.5.tar.gz", hash = "sha256:d50dd7f2180d6f3e21a107b8759d62f9a9dd093b64833f73940d99f58723c4b4"},
-]
-
-[[package]]
 name = "distlib"
 version = "0.3.7"
 description = "Distribution utilities"
@@ -2243,4 +2231,4 @@ testing = ["big-O", "jaraco.functools", "jaraco.itertools", "more-itertools", "p
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.9,<4.0.0"
-content-hash = "b4a34b64c73446eb80a3e561c01506b8d6d845a5e2565623fc9a9c449f846c45"
+content-hash = "ffded83b2605de00beeea06ca9143bd53bad75958a608b0850d2b8241e922a35"
