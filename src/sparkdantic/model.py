@@ -245,6 +245,7 @@ class SparkModel(BaseModel):
     def generate_data(
         cls, spark: SparkSession, specs: GenerationSpecs, n_rows: int = 100
     ) -> DataFrame:
+        # initialise a dataframe with a single column to hold the row id
         initial_schema = StructType(
             [StructField('__sparkdantic_row_id__', IntegerType(), nullable=False)]
         )
@@ -256,4 +257,5 @@ class SparkModel(BaseModel):
             generator_udf = F.udf(func, col.dataType)
             data = data.withColumn(col.name, generator_udf() if func is not None else F.lit(None))
 
+        # remove the internal row id column from the final dataframe
         return data.drop('__sparkdantic_row_id__')
