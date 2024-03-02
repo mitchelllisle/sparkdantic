@@ -235,10 +235,20 @@ class SparkModel(BaseModel):
         fields = []
         for k, v in cls.model_fields.items():
             _, t = cls._is_nullable(v.annotation)
+
             if cls._is_spark_model_subclass(t):
                 fields.append(StructField(k, t.model_spark_schema()))  # type: ignore
             else:
-                t, nullable = cls._type_to_spark(v.annotation, v.metadata)
+                field_info_extra = getattr(v, 'json_schema_extra', None) or {}
+                override = field_info_extra.get('spark_type')
+                if (override not in native_spark_types) and (override is not None):
+                    raise TypeError(
+                        f'Defining `spark_type` must be a valid `pyspark.sql.types` type. Got {override}'
+                    )
+                if override:
+                    t, nullable = cls._type_to_spark(override, v.metadata)
+                else:
+                    t, nullable = cls._type_to_spark(v.annotation, v.metadata)
                 _struct_field = StructField(k, t, nullable)
                 fields.append(_struct_field)
         return StructType(fields)
