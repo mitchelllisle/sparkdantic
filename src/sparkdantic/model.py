@@ -234,10 +234,10 @@ class SparkModel(BaseModel):
         """
         fields = []
         for k, v in cls.model_fields.items():
-            _, t = cls._is_nullable(v.annotation)
+            nullable, t = cls._is_nullable(v.annotation)
 
             if cls._is_spark_model_subclass(t):
-                fields.append(StructField(k, t.model_spark_schema()))  # type: ignore
+                fields.append(StructField(k, t.model_spark_schema(), nullable))  # type: ignore
             else:
                 field_info_extra = getattr(v, 'json_schema_extra', None) or {}
                 override = field_info_extra.get('spark_type')
