@@ -1,3 +1,5 @@
+from typing import Optional
+
 from pyspark.sql.types import IntegerType, StringType, StructField, StructType
 
 from sparkdantic import SparkModel
@@ -24,7 +26,7 @@ def test_recursive():
                         StructField('age', IntegerType(), False),
                     ]
                 ),
-                True,
+                False,
             ),
             StructField('created', StringType(), False),
         ]
@@ -32,4 +34,30 @@ def test_recursive():
     inner = InnerModel()
     rec = RecursiveModel(details=inner)
     schema = rec.model_spark_schema()
+    assert schema == expected
+
+
+def test_optional_child_classes():
+    class ChildSchema(SparkModel):
+        ncol1: str
+        ncol2: Optional[str] = None
+
+    class ParentSchema(SparkModel):
+        col1: Optional[ChildSchema] = None
+
+    schema = ParentSchema.model_spark_schema()
+    expected = StructType(
+        [
+            StructField(
+                'col1',
+                dataType=StructType(
+                    [
+                        StructField('ncol1', StringType(), False),
+                        StructField('ncol2', StringType(), True),
+                    ]
+                ),
+                nullable=True,
+            )
+        ]
+    )
     assert schema == expected
