@@ -234,6 +234,7 @@ class SparkModel(BaseModel):
         """
         fields = []
         for k, v in cls.model_fields.items():
+            k = getattr(v, 'alias') or k
             nullable, t = cls._is_nullable(v.annotation)
 
             if cls._is_spark_model_subclass(t):
