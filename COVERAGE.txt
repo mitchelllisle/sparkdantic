@@ -2,6 +2,6 @@ Name                            Stmts   Miss  Cover
 ---------------------------------------------------
 src/sparkdantic/__init__.py         5      0   100%
 src/sparkdantic/generation.py      36      0   100%
-src/sparkdantic/model.py          146      2    99%
+src/sparkdantic/model.py          147      2    99%
 ---------------------------------------------------
-TOTAL                             187      2    99%
+TOTAL                             188      2    99%
