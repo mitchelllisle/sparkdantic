@@ -38,6 +38,7 @@ class DictValuesModel(SparkModel):
     jj: Dict[timedelta, timedelta]
     kk: Dict[IntTestEnum, IntTestEnum]
     ll: dict[str, str]
+    mm: dict[str, str | None]
 
 
 def test_dict_values():
@@ -56,6 +57,7 @@ def test_dict_values():
             ),
             StructField('kk', MapType(IntegerType(), IntegerType(), False), False),
             StructField('ll', MapType(StringType(), StringType(), False), False),
+            StructField('mm', MapType(StringType(), StringType(), True), False),
         ]
     )
 

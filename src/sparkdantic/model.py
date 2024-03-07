@@ -347,14 +347,15 @@ class SparkModel(BaseModel):
             inner_type = args[0]
             if cls._is_spark_model_subclass(inner_type):
                 array_type = inner_type.model_spark_schema()
+                inner_nullable = nullable
             else:
                 # Check if it's an accepted Enum
-                array_type, _ = cls._type_to_spark(inner_type, [])
-            return ArrayType(array_type, nullable), nullable
+                array_type, inner_nullable = cls._type_to_spark(inner_type, [])
+            return ArrayType(array_type, inner_nullable), nullable
         elif origin is dict:
             key_type, _ = cls._type_to_spark(args[0], [])
-            value_type, _ = cls._type_to_spark(args[1], [])
-            return MapType(key_type, value_type, nullable), nullable
+            value_type, inner_nullable = cls._type_to_spark(args[1], [])
+            return MapType(key_type, value_type, inner_nullable), nullable
         elif origin is typing.Literal:
             # PySpark doesn't have an equivalent type for Literal. To allow Literal usage with a model we check all the
             # types of values within Literal. If they are all the same, use that type as our new type.

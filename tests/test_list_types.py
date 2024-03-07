@@ -44,6 +44,7 @@ class ListValuesModel(SparkModel):
     o1: Optional[List[MyModel]]
     o2: Optional[List[IntTestEnum]]
     o3: list[str]
+    j: list[str | None]
 
 
 def test_list_values():
@@ -64,8 +65,9 @@ def test_list_values():
             StructField(
                 'o1', ArrayType(StructType([StructField('k', StringType(), False)]), True), True
             ),
-            StructField('o2', ArrayType(IntegerType(), True), True),
+            StructField('o2', ArrayType(IntegerType(), False), True),
             StructField('o3', ArrayType(StringType(), False), False),
+            StructField('j', ArrayType(StringType(), True), False),
         ]
     )
     generated_schema = ListValuesModel.model_spark_schema()
