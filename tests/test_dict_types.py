@@ -1,7 +1,7 @@
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 from enum import IntEnum
-from typing import Dict
+from typing import Dict, Union
 
 from pyspark.sql.types import (
     BinaryType,
@@ -38,7 +38,7 @@ class DictValuesModel(SparkModel):
     jj: Dict[timedelta, timedelta]
     kk: Dict[IntTestEnum, IntTestEnum]
     ll: dict[str, str]
-    mm: dict[str, str | None]
+    mm: dict[str, Union[str, None]]
 
 
 def test_dict_values():

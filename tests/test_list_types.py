@@ -1,7 +1,7 @@
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 from enum import IntEnum
-from typing import List, Optional
+from typing import List, Optional, Union
 
 from pyspark.sql.types import (
     ArrayType,
@@ -44,7 +44,7 @@ class ListValuesModel(SparkModel):
     o1: Optional[List[MyModel]]
     o2: Optional[List[IntTestEnum]]
     o3: list[str]
-    j: list[str | None]
+    j: list[Union[str, None]]
 
 
 def test_list_values():
