@@ -349,7 +349,7 @@ class SparkModel(BaseModel):
                 array_type = inner_type.model_spark_schema()
                 inner_nullable = nullable
             else:
-                # Check if it's an accepted Enum
+                # Check if it's an accepted Enum or optional SparkModel subclass
                 array_type, inner_nullable = cls._type_to_spark(inner_type, [])
             return ArrayType(array_type, inner_nullable), nullable
         elif origin is dict:
@@ -369,6 +369,8 @@ class SparkModel(BaseModel):
         elif origin is Annotated:
             # first arg of annotated type is the type, second is metadata that we don't do anything with (yet)
             t = args[0]
+        elif issubclass(t, SparkModel):
+            return t.model_spark_schema(), nullable
 
         if issubclass(t, Enum):
             t = cls._get_enum_mixin_type(t)
