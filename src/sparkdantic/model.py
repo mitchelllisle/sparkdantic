@@ -211,8 +211,8 @@ class SparkModel(BaseModel):
         specs = {} if not specs else specs
         generator = dg.DataGenerator(spark, seedColumnName='_seed_id', rows=n_rows, **kwargs)
         for name, field in cls.model_fields.items():
-            name = getattr(field, 'alias') or name
             spec = specs.get(name)
+            name = getattr(field, 'alias') or name
 
             if (
                 spec is None
