@@ -2,7 +2,6 @@ from enum import Enum, IntEnum
 from typing import Dict, List, Optional, Union, get_args, get_origin
 
 import dbldatagen as dg
-import pyspark.sql
 import pytest
 from faker import Faker
 from pydantic import Field
@@ -126,6 +125,6 @@ def test_missing_mapping_source(spark: SparkSession):
 
 
 def test_use_field_alias(spark: SparkSession):
-    data_gen: pyspark.sql.DataFrame = AliasModel.generate_data(spark, n_rows=1)
+    data_gen = AliasModel.generate_data(spark, n_rows=1)
 
     assert data_gen.columns == ['_val']
