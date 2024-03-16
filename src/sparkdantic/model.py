@@ -212,6 +212,7 @@ class SparkModel(BaseModel):
         generator = dg.DataGenerator(spark, seedColumnName='_seed_id', rows=n_rows, **kwargs)
         for name, field in cls.model_fields.items():
             spec = specs.get(name)
+            name = getattr(field, 'alias') or name
 
             if (
                 spec is None

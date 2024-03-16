@@ -4,6 +4,7 @@ from typing import Dict, List, Optional, Union, get_args, get_origin
 import dbldatagen as dg
 import pytest
 from faker import Faker
+from pydantic import Field
 from pyspark.sql import SparkSession
 from pyspark.sql import functions as f
 
@@ -28,6 +29,10 @@ class SampleModel(SparkModel):
     map: Dict[str, str]
     single_value: int
     enum: IntTestEnum
+
+
+class AliasModel(SparkModel):
+    val: int = Field(alias='_val')
 
 
 def test_generate_data(spark: SparkSession):
@@ -106,7 +111,6 @@ def test_weights_validator():
 
 
 def test_weight_validator_error_in_generate(spark: SparkSession):
-
     spec = {'val': ColumnGenerationSpec(values=[1, 2], weights=[0.9, 0.1])}
 
     synthetic = SingleFieldModel.generate_data(spark, specs=spec, n_rows=10)
@@ -118,3 +122,9 @@ def test_missing_mapping_source(spark: SparkSession):
     specs = {'val': ColumnGenerationSpec(mapping={'a': 2})}
     with pytest.raises(ValueError):
         SingleFieldModel.generate_data(spark, specs=specs, n_rows=10)
+
+
+def test_use_field_alias(spark: SparkSession):
+    data_gen = AliasModel.generate_data(spark, n_rows=1)
+
+    assert data_gen.columns == ['_val']
