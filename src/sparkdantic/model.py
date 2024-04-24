@@ -303,8 +303,10 @@ class SparkModel(BaseModel):
         """
         spark_type = type_map.get(t)
         if spark_type is None:
-            raise TypeError(f'Type {t} not recognized')
-
+            parent_type = t.__base__
+            spark_type = type_map.get(parent_type)
+            if spark_type is None:
+                raise TypeError(f'Type {t} not recognized')
         spark_type.nullable = nullable
         return spark_type
 
