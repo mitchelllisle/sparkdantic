@@ -190,7 +190,7 @@ def model_schema(type: Type[BaseModel]) -> StructType:
 
 
 def _add_column_specs(
-    subject: Type[SparkModel],
+    type: Type[SparkModel],
     generator: dg.DataGenerator,
     spec: ColumnGenerationSpec,
     name: str,
@@ -202,7 +202,7 @@ def _add_column_specs(
         generator (dg.DataGenerator): The data generator.
         spec (ColumnGenerationSpec): The column generation specifications.
         name (str): The column name.
-        field (Field): The Pydantic ield.
+        field (Field): The Pydantic field.
     """
     t, container, nullable = _type_to_spark_type_specs(field.annotation)
     if spec:
@@ -218,7 +218,7 @@ def _add_column_specs(
                     'You have specified a mapping but not mapping_source. '
                     'You must pass in a valid column name to map values to.'
                 )
-            subject._mapped_field.default.append((name, spec.mapping, spec.mapping_source))
+            type._mapped_field.default.append((name, spec.mapping, spec.mapping_source))
 
         generator.withColumn(
             name,
@@ -228,7 +228,7 @@ def _add_column_specs(
             **spec.model_dump(
                 by_alias=True,
                 exclude_none=True,
-                exclude=subject._non_standard_fields.default,
+                exclude=type._non_standard_fields.default,
             ),
         )
     else:
