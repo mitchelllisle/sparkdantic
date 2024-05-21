@@ -1,17 +1,28 @@
 from typing import Optional
 
+from pydantic import BaseModel
 from pyspark.sql.types import IntegerType, StringType, StructField, StructType
 
 from sparkdantic import SparkModel
 
 
-class InnerModel(SparkModel):
+class InnerModelBase(BaseModel):
+    name: str = 'test'
+    age: int = 50
+
+
+class InnerModel(BaseModel):
     name: str = 'test'
     age: int = 50
 
 
 class RecursiveModel(SparkModel):
     details: InnerModel
+    created: str = 'today'
+
+
+class RecursiveModelBase(SparkModel):
+    details: InnerModelBase
     created: str = 'today'
 
 
@@ -33,6 +44,28 @@ def test_recursive():
     )
     inner = InnerModel()
     rec = RecursiveModel(details=inner)
+    schema = rec.model_spark_schema()
+    assert schema == expected
+
+
+def test_recursive_base_model():
+    expected = StructType(
+        [
+            StructField(
+                'details',
+                StructType(
+                    [
+                        StructField('name', StringType(), False),
+                        StructField('age', IntegerType(), False),
+                    ]
+                ),
+                False,
+            ),
+            StructField('created', StringType(), False),
+        ]
+    )
+    inner = InnerModelBase()
+    rec = RecursiveModelBase(details=inner)
     schema = rec.model_spark_schema()
     assert schema == expected
 

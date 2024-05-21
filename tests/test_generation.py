@@ -9,6 +9,7 @@ from pyspark.sql import SparkSession
 from pyspark.sql import functions as f
 
 from sparkdantic import ColumnGenerationSpec, SparkModel
+from sparkdantic.model import _spec_weights_to_row_count
 
 
 class IntTestEnum(IntEnum):
@@ -45,7 +46,7 @@ def test_weights_conversion(spark: SparkSession):
     n_rows = 1000
     generator = dg.DataGenerator(spark, rows=n_rows)
     weights = [0.1, 0.2, 0.7]
-    adjusted = SampleModel._spec_weights_to_row_count(generator, weights)
+    adjusted = _spec_weights_to_row_count(generator, weights)
     assert generator.rowCount == n_rows
     assert adjusted == [100, 200, 700]
     assert sum(adjusted) == n_rows
