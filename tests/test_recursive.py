@@ -11,7 +11,7 @@ class InnerModelBase(BaseModel):
     age: int = 50
 
 
-class InnerModel(BaseModel):
+class InnerModel(SparkModel):
     name: str = 'test'
     age: int = 50
 
