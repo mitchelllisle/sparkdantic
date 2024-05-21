@@ -171,7 +171,7 @@ def model_schema(type: Type[BaseModel]) -> StructType:
         k = getattr(v, 'alias') or k
         nullable, t = _is_nullable(v.annotation)
 
-        if _is_spark_model_subclass(t):
+        if _is_supported_subclass(t):
             fields.append(StructField(k, model_schema(t), nullable))  # type: ignore
         else:
             field_info_extra = getattr(v, 'json_schema_extra', None) or {}
@@ -308,7 +308,7 @@ def _type_to_spark(type: Type, metadata) -> Tuple[DataType, bool]:
     # Convert complex types
     if origin is list:
         inner_type = args[0]
-        if _is_spark_model_subclass(inner_type):
+        if _is_supported_subclass(inner_type):
             array_type = inner_type.model_spark_schema()
             inner_nullable = nullable
         else:
@@ -351,7 +351,7 @@ def _type_to_spark(type: Type, metadata) -> Tuple[DataType, bool]:
     return spark_type, nullable
 
 
-def _is_spark_model_subclass(type: Type) -> bool:
+def _is_supported_subclass(type: Type) -> bool:
     """Checks if a class is a subclass of SparkModel.
 
     Args:
