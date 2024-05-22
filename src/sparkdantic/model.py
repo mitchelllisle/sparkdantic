@@ -160,14 +160,14 @@ class SparkModel(BaseModel):
         return cls._post_mapping_process(generated)
 
 
-def model_schema(type: Type[BaseModel]) -> StructType:
+def model_schema(type_: Type[BaseModel]) -> StructType:
     """Generates a PySpark schema from the model fields.
 
     Returns:
         StructType: The generated PySpark schema.
     """
     fields = []
-    for k, v in type.model_fields.items():
+    for k, v in type_.model_fields.items():
         k = getattr(v, 'alias') or k
         nullable, t = _is_nullable(v.annotation)
 
@@ -190,7 +190,7 @@ def model_schema(type: Type[BaseModel]) -> StructType:
 
 
 def _add_column_specs(
-    type: Type[SparkModel],
+    type_: Type[SparkModel],
     generator: dg.DataGenerator,
     spec: ColumnGenerationSpec,
     name: str,
@@ -218,7 +218,7 @@ def _add_column_specs(
                     'You have specified a mapping but not mapping_source. '
                     'You must pass in a valid column name to map values to.'
                 )
-            type._mapped_field.default.append((name, spec.mapping, spec.mapping_source))
+            type_._mapped_field.default.append((name, spec.mapping, spec.mapping_source))
 
         generator.withColumn(
             name,
@@ -228,18 +228,18 @@ def _add_column_specs(
             **spec.model_dump(
                 by_alias=True,
                 exclude_none=True,
-                exclude=type._non_standard_fields.default,
+                exclude=type_._non_standard_fields.default,
             ),
         )
     else:
         generator.withColumn(name, colType=t, nullable=nullable, structType=container)
 
 
-def _get_spark_type(type: Type, nullable: bool) -> Type[DataType]:
+def _get_spark_type(type_: Type, nullable: bool) -> Type[DataType]:
     """Returns the corresponding PySpark data type for a given Python type, considering nullability.
 
     Args:
-        type (Type): The type to convert to a PySpark data type.
+        type_ (Type): The type to convert to a PySpark data type.
         nullable (bool): Indicates whether the PySpark data type should be nullable.
 
     Returns:
@@ -248,19 +248,19 @@ def _get_spark_type(type: Type, nullable: bool) -> Type[DataType]:
     Raises:
         TypeError: If the type is not recognized in the type map.
     """
-    spark_type = type_map.get(type)
+    spark_type = type_map.get(type_)
     if spark_type is None:
-        raise TypeError(f'Type {type} not recognized')
+        raise TypeError(f'Type {type_} not recognized')
 
     spark_type.nullable = nullable
     return spark_type
 
 
-def _get_enum_mixin_type(type: EnumType) -> MixinType:
+def _get_enum_mixin_type(type_: EnumType) -> MixinType:
     """Returns the mixin type of an Enum.
 
     Args:
-        type (EnumType): The Enum to get the mixin type from.
+        type_ (EnumType): The Enum to get the mixin type from.
 
     Returns:
         MixinType: The type mixed with the Enum.
@@ -268,42 +268,42 @@ def _get_enum_mixin_type(type: EnumType) -> MixinType:
     Raises:
         TypeError: If the mixin type is not supported (int and str are supported).
     """
-    if issubclass(type, int):
+    if issubclass(type_, int):
         return int
-    elif issubclass(type, str):
+    elif issubclass(type_, str):
         return str
     else:
-        raise TypeError(f'Enum {type} is not supported. Only int and str mixins are supported.')
+        raise TypeError(f'Enum {type_} is not supported. Only int and str mixins are supported.')
 
 
-def _type_to_spark_type_specs(type: Type) -> Tuple[DataType, Optional[str], bool]:
+def _type_to_spark_type_specs(type_: Type) -> Tuple[DataType, Optional[str], bool]:
     """Converts a given type to its corresponding Spark data type specifications.
 
     Args:
-        type (Type): The Python type.
+        type_ (Type): The Python type.
 
     Returns:
         Tuple[DataType, Optional[str], bool]: The corresponding Spark DataType, container type, and nullability.
     """
-    spark_type, nullable = _type_to_spark(type, [])
+    spark_type, nullable = _type_to_spark(type_, [])
     if isinstance(spark_type, ArrayType):
         return spark_type.elementType, ArrayType.typeName(), nullable
     return spark_type, None, nullable
 
 
-def _type_to_spark(type: Type, metadata) -> Tuple[DataType, bool]:
+def _type_to_spark(type_: Type, metadata) -> Tuple[DataType, bool]:
     """Converts a given Python type to a corresponding PySpark data type.
 
     Args:
-        type (Type): The type to convert to a PySpark data type.
+        type_ (Type): The type to convert to a PySpark data type.
 
     Returns:
         DataType: The corresponding PySpark data type.
     """
-    nullable, type = _is_nullable(type)
+    nullable, type_ = _is_nullable(type_)
     meta = None if len(metadata) < 1 else metadata.pop()
-    args = get_args(type)
-    origin = get_origin(type)
+    args = get_args(type_)
+    origin = get_origin(type_)
 
     # Convert complex types
     if origin is list:
@@ -328,20 +328,20 @@ def _type_to_spark(type: Type, metadata) -> Tuple[DataType, bool]:
                 'Your model has a `Literal` type with multiple args of different types. Fields defined with '
                 '`Literal` must have one consistent arg type'
             )
-        type = literal_arg_types.pop()
+        type_ = literal_arg_types.pop()
     elif origin is Annotated:
         # first arg of annotated type is the type, second is metadata that we don't do anything with (yet)
-        type = args[0]
-    elif issubclass(type, SparkModel):
-        return type.model_spark_schema(), nullable
+        type_ = args[0]
+    elif issubclass(type_, SparkModel):
+        return type_.model_spark_schema(), nullable
 
-    if issubclass(type, Enum):
-        type = _get_enum_mixin_type(type)
+    if issubclass(type_, Enum):
+        type_ = _get_enum_mixin_type(type_)
 
-    if type in native_spark_types:
-        spark_type = type()
+    if type_ in native_spark_types:
+        spark_type = type_()
     else:
-        spark_type = _get_spark_type(type, nullable)()
+        spark_type = _get_spark_type(type_, nullable)()
 
     if isinstance(spark_type, DecimalType):
         if meta is not None:
@@ -351,38 +351,38 @@ def _type_to_spark(type: Type, metadata) -> Tuple[DataType, bool]:
     return spark_type, nullable
 
 
-def _is_supported_subclass(type: Type) -> bool:
+def _is_supported_subclass(type_: Type) -> bool:
     """Checks if a class is a subclass of SparkModel.
 
     Args:
-        type: The class to check.
+        type_: The class to check.
 
     Returns:
         bool: True if it is a subclass, otherwise False.
     """
     try:
-        return (inspect.isclass(type)) and (
-            issubclass(type, SparkModel) or issubclass(type, BaseModel)
+        return (inspect.isclass(type_)) and (
+            issubclass(type_, SparkModel) or issubclass(type_, BaseModel)
         )
     except TypeError:
         return False
 
 
-def _is_nullable(type: Type) -> Tuple[bool, Type]:
+def _is_nullable(type_: Type) -> Tuple[bool, Type]:
     """Determines if a type is nullable and returns the type without the Union.
 
     Args:
-        type (Type): The type to check for nullability.
+        type_ (Type): The type to check for nullability.
 
     Returns:
         Tuple[bool, Type]: A tuple containing a boolean indicating nullability and the original type.
     """
-    if get_origin(type) in (Union, UnionType):
-        type_args = get_args(type)
+    if get_origin(type_) in (Union, UnionType):
+        type_args = get_args(type_)
         if any([get_origin(arg) is None for arg in type_args]):
-            type = type_args[0]
-            return True, type
-    return False, type
+            type_ = type_args[0]
+            return True, type_
+    return False, type_
 
 
 def _spec_weights_to_row_count(generator: dg.DataGenerator, weights: List[float]) -> List[int]:
