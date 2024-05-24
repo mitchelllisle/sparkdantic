@@ -421,13 +421,13 @@ test-randomorder = ["pytest-randomly"]
 
 [[package]]
 name = "dbldatagen"
-version = "0.3.6"
+version = "0.3.6.post1"
 description = "Databricks Labs -  PySpark Synthetic Data Generator"
 optional = false
 python-versions = ">=3.8.10"
 files = [
-    {file = "dbldatagen-0.3.6-py3-none-any.whl", hash = "sha256:610c8568197d20c27835b92f0db86ee2bc5f339568cfc5637d4280ba30dd10fa"},
-    {file = "dbldatagen-0.3.6.tar.gz", hash = "sha256:e360fba8cc4393b53214daf708444c9d4843903d05858a25b830fb37886f5345"},
+    {file = "dbldatagen-0.3.6.post1-py3-none-any.whl", hash = "sha256:ad6429afff058bba9402c9ec4863609f2c87b1deda22b0f8a3c95d1c824a1089"},
+    {file = "dbldatagen-0.3.6.post1.tar.gz", hash = "sha256:f975db5b520874d1aae64c98287ae0b326b8a87625e2c136198aabd168bbec57"},
 ]
 
 [[package]]
