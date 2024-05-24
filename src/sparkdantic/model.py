@@ -6,10 +6,9 @@ from datetime import date, datetime, timedelta
 from decimal import Decimal
 from enum import Enum
 from types import MappingProxyType
-from typing import Annotated, Dict, List, Optional, Tuple, Type, Union, get_args, get_origin
+from typing import Annotated, Dict, Optional, Tuple, Type, Union, get_args, get_origin
 
-import dbldatagen as dg
-from pydantic import BaseModel, ConfigDict, Field, SecretBytes, SecretStr
+from pydantic import BaseModel, ConfigDict, SecretBytes, SecretStr
 from pydantic.fields import ModelPrivateAttr
 from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql import functions as F  # noqa
@@ -31,7 +30,7 @@ from pyspark.sql.types import (
     TimestampType,
 )
 
-from sparkdantic.generation import ColumnGenerationSpec
+from sparkdantic.generation import GenerationSpec, MappingSpec, default_generator
 
 if sys.version_info > (3, 10):
     from types import UnionType  # pragma: no cover
@@ -82,7 +81,7 @@ type_map = MappingProxyType(
 
 MixinType = Union[Type[int], Type[str]]
 
-ColumnSpecs = Optional[Dict[str, ColumnGenerationSpec]]
+GenerationSpecs = Optional[Dict[str, GenerationSpec]]
 
 
 class SparkModel(BaseModel):
@@ -127,39 +126,30 @@ class SparkModel(BaseModel):
 
     @classmethod
     def generate_data(
-        cls,
-        spark: SparkSession,
-        n_rows: int = 100,
-        specs: Optional[ColumnSpecs] = None,
-        **kwargs,
+        cls, spark: SparkSession, specs: Optional[GenerationSpecs] = None, n_rows: int = 100
     ) -> DataFrame:
-        """Generates PySpark DataFrame based on the schema and the column specs.
+        # initialise a dataframe with a single column to hold the row id
+        initial_schema = StructType(
+            [StructField('__sparkdantic_row_id__', IntegerType(), nullable=False)]
+        )
+        data = spark.createDataFrame([(i,) for i in range(n_rows)], initial_schema)
+        if not specs:
+            specs = {}
 
-        Args:
-            spark (SparkSession): The Spark session.
-            n_rows (int, optional): Number of rows. Defaults to 100.
-            specs (Optional[ColumnSpecs]): Column specifications. Defaults to None.
+        schema = cls.model_spark_schema()
+        for col in schema.fields:
+            func = specs.get(col.name, default_generator(col.dataType))
+            if isinstance(func, MappingSpec):
+                mapping_ = F.create_map([F.lit(x) for x in sum(func.mapping.items(), ())])
+                data = data.withColumn(col.name, mapping_.getItem(data[func.mapping_source]))
+            else:
+                generator_udf = F.udf(func, col.dataType)
+                data = data.withColumn(
+                    col.name, generator_udf() if func is not None else F.lit(None)
+                )
 
-        Returns:
-            DataFrame: The generated PySpark DataFrame.
-        """
-        specs = {} if not specs else specs
-        generator = dg.DataGenerator(spark, seedColumnName='_seed_id', rows=n_rows, **kwargs)
-        for name, field in cls.model_fields.items():
-            spec = specs.get(name)
-            name = getattr(field, 'alias') or name
-
-            if (
-                spec is None
-                and inspect.isclass(field.annotation)
-                and issubclass(field.annotation, Enum)
-            ):
-                # For Enums, default to using all values specified in the Enum
-                spec = ColumnGenerationSpec(values=[item.value for item in field.annotation])
-
-            _add_column_specs(cls, generator, spec, name, field)  # type: ignore
-        generated = generator.build()
-        return cls._post_mapping_process(generated)
+        # remove the internal row id column from the final dataframe
+        return data.drop('__sparkdantic_row_id__')
 
 
 def create_spark_schema(model: Type[BaseModel]) -> StructType:
@@ -192,53 +182,6 @@ def create_spark_schema(model: Type[BaseModel]) -> StructType:
             _struct_field = StructField(k, t, nullable)
             fields.append(_struct_field)
     return StructType(fields)
-
-
-def _add_column_specs(
-    model: Type[SparkModel],
-    generator: dg.DataGenerator,
-    spec: ColumnGenerationSpec,
-    name: str,
-    field: Field,
-):
-    """Adds column specifications to the DataGenerator.
-
-    Args:
-        model (Type[SparkModel]): The Spark Model.
-        generator (dg.DataGenerator): The data generator.
-        spec (ColumnGenerationSpec): The column generation specifications.
-        name (str): The column name.
-        field (Field): The Pydantic field.
-    """
-    t, container, nullable = _type_to_spark_type_specs(field.annotation)
-    if spec:
-        if spec.weights:
-            spec.weights = _spec_weights_to_row_count(generator, spec.weights)  # type: ignore
-
-        if spec.value:
-            spec.values = [spec.value]
-
-        if spec.mapping:
-            if spec.mapping_source is None:
-                raise ValueError(
-                    'You have specified a mapping but not mapping_source. '
-                    'You must pass in a valid column name to map values to.'
-                )
-            model._mapped_field.default.append((name, spec.mapping, spec.mapping_source))
-
-        generator.withColumn(
-            name,
-            colType=t,
-            nullable=nullable,
-            structType=container,
-            **spec.model_dump(
-                by_alias=True,
-                exclude_none=True,
-                exclude=model._non_standard_fields.default,
-            ),
-        )
-    else:
-        generator.withColumn(name, colType=t, nullable=nullable, structType=container)
 
 
 def _get_spark_type(t: Type, nullable: bool) -> Type[DataType]:
@@ -389,16 +332,3 @@ def _is_nullable(t: Type) -> Tuple[bool, Type]:
             t = type_args[0]
             return True, t
     return False, t
-
-
-def _spec_weights_to_row_count(generator: dg.DataGenerator, weights: List[float]) -> List[int]:
-    """Converts weights to row count.
-
-    Args:
-        generator (dg.DataGenerator): The data generator.
-        weights (List[float]): The list of weights.
-
-    Returns:
-        List[int]: List of row counts.
-    """
-    return [int(generator.rowCount * w) for w in weights]

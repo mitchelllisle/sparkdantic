@@ -1,15 +1,13 @@
 from enum import Enum, IntEnum
 from typing import Dict, List, Optional, Union, get_args, get_origin
 
-import dbldatagen as dg
 import pytest
 from faker import Faker
 from pydantic import Field
 from pyspark.sql import SparkSession
-from pyspark.sql import functions as f
+from pyspark.sql import functions as F
 
-from sparkdantic import ColumnGenerationSpec, SparkModel
-from sparkdantic.model import _spec_weights_to_row_count
+from sparkdantic import ChoiceSpec, FuncSpec, MappingSpec, RangeSpec, SparkModel, ValueSpec
 
 
 class IntTestEnum(IntEnum):
@@ -23,13 +21,30 @@ class SingleFieldModel(SparkModel):
 
 class SampleModel(SparkModel):
     logic_number: int
-    logic: str
+    logic: Optional[str]
     name: str
     age: Optional[int] = None
     jobs: List[str]
     map: Dict[str, str]
     single_value: int
     enum: IntTestEnum
+
+
+def test_generator(spark: SparkSession, faker: Faker):
+    n_rows = 100
+    data = SampleModel.generate_data(
+        spark,
+        specs={
+            'logic_number': RangeSpec(min_value=0, max_value=100),
+            'logic': ChoiceSpec(values=['a', 'b', 'c']),
+            'name': FuncSpec(func=faker.name),
+            'age': RangeSpec(min_value=0, max_value=100, nullable=True),
+            'single_value': ValueSpec(value=1),
+        },
+        n_rows=n_rows,
+    )
+    data.show()
+    assert data.count() == n_rows
 
 
 class AliasModel(SparkModel):
@@ -42,29 +57,25 @@ def test_generate_data(spark: SparkSession):
     assert len(data_gen) == 10
 
 
-def test_weights_conversion(spark: SparkSession):
-    n_rows = 1000
-    generator = dg.DataGenerator(spark, rows=n_rows)
-    weights = [0.1, 0.2, 0.7]
-    adjusted = _spec_weights_to_row_count(generator, weights)
-    assert generator.rowCount == n_rows
-    assert adjusted == [100, 200, 700]
-    assert sum(adjusted) == n_rows
-
-
 def _check_types_and_subtypes_match(field, row, name):
     container = get_origin(field.annotation)
     if container:
         inner = get_args(field.annotation)
         if container is not Union:
             if container is not dict:
-                assert isinstance(row[name], container)
+                assert isinstance(row[name], container), f'{row[name]} is not of type {container}'
         else:
-            assert isinstance(row[name], inner[0])
+            assert any(
+                [isinstance(row[name], t) for t in inner]
+            ), f'{row[name]} is not of type {inner}'
     elif issubclass(field.annotation, Enum):
-        assert row[name] in {item.value for item in field.annotation}
+        assert row[name] in {
+            item.value for item in field.annotation
+        }, f'{row[name]} not in {field.annotation}'
     else:
-        assert isinstance(row[name], field.annotation)
+        assert isinstance(
+            row[name], field.annotation
+        ), f'{row[name]} is not of type {field.annotation}'
 
 
 def test_column_defaults(spark: SparkSession):
@@ -78,13 +89,13 @@ def test_columns_with_specs(spark: SparkSession, faker: Faker):
     n_rows = 1000
     names = [faker.name() for _ in range(100)]
     specs = {
-        'name': ColumnGenerationSpec(values=names),
-        'age': ColumnGenerationSpec(min_value=10, max_value=20),
-        'jobs': ColumnGenerationSpec(values=[faker.job(), faker.job()]),
-        'single_value': ColumnGenerationSpec(value=1),
-        'logic_number': ColumnGenerationSpec(values=[1, 2]),
-        'logic': ColumnGenerationSpec(mapping={1: 'a', 2: 'b'}, mapping_source='logic_number'),
-        'enum': ColumnGenerationSpec(values=[IntTestEnum.X.value]),
+        'name': ChoiceSpec(values=names),
+        'age': RangeSpec(min_value=10, max_value=20),
+        'jobs': ChoiceSpec(values=[faker.job(), faker.job()], n=2),
+        'single_value': ValueSpec(value=1),
+        'logic_number': ChoiceSpec(values=[1, 2, 3]),
+        'logic': MappingSpec(mapping={1: 'a', 2: 'b'}, mapping_source='logic_number'),
+        'enum': ChoiceSpec(values=[IntTestEnum.X.value]),
     }
     data_gen = SampleModel.generate_data(spark, specs=specs, n_rows=n_rows).collect()
     for row in data_gen:
@@ -96,6 +107,8 @@ def test_columns_with_specs(spark: SparkSession, faker: Faker):
             assert row.logic == 'a'
         if row.logic_number == 2:
             assert row.logic == 'b'
+        if row.logic_number == 3:
+            assert row.logic is None
         assert row.enum == IntTestEnum.X
         for name, field in SampleModel.model_fields.items():
             _check_types_and_subtypes_match(field, row, name)
@@ -103,26 +116,20 @@ def test_columns_with_specs(spark: SparkSession, faker: Faker):
 
 def test_weights_validator_error():
     with pytest.raises(ValueError):
-        ColumnGenerationSpec(weights=[0.1])
+        ChoiceSpec(weights=[0.1], values=[1, 2])
 
 
 def test_weights_validator():
-    spec = ColumnGenerationSpec(weights=[0.1, 0.9])
+    spec = ChoiceSpec(weights=[0.1, 0.9], values=[1, 2])
     assert sum(spec.weights) == 1
 
 
 def test_weight_validator_error_in_generate(spark: SparkSession):
-    spec = {'val': ColumnGenerationSpec(values=[1, 2], weights=[0.9, 0.1])}
+    spec = {'val': ChoiceSpec(values=[1, 2], weights=[0.9, 0.1])}
 
     synthetic = SingleFieldModel.generate_data(spark, specs=spec, n_rows=10)
-    assert len(synthetic.where(f.col('val') == 1).collect()) == 9
-    assert len(synthetic.where(f.col('val') == 2).collect()) == 1
-
-
-def test_missing_mapping_source(spark: SparkSession):
-    specs = {'val': ColumnGenerationSpec(mapping={'a': 2})}
-    with pytest.raises(ValueError):
-        SingleFieldModel.generate_data(spark, specs=specs, n_rows=10)
+    assert len(synthetic.where(F.col('val') == 1).collect()) == 9
+    assert len(synthetic.where(F.col('val') == 2).collect()) == 1
 
 
 def test_use_field_alias(spark: SparkSession):
