@@ -40,6 +40,7 @@ class RawValuesModel(SparkModel):
     hh: DoubleType
     ii: SecretBytes
     jj: SecretStr
+    x: str = Field(alias='_x')
 
 
 def test_raw_values():
@@ -57,6 +58,7 @@ def test_raw_values():
             StructField('hh', DoubleType(), False),
             StructField('ii', BinaryType(), False),
             StructField('jj', StringType(), False),
+            StructField('_x', StringType(), False),
         ]
     )
     generated_schema = RawValuesModel.model_spark_schema()
