@@ -7,6 +7,7 @@ from decimal import Decimal
 from enum import Enum
 from types import MappingProxyType
 from typing import Annotated, Dict, List, Optional, Tuple, Type, Union, get_args, get_origin
+from uuid import UUID
 
 import dbldatagen as dg
 from pydantic import BaseModel, ConfigDict, Field, SecretBytes, SecretStr
@@ -77,6 +78,7 @@ type_map = MappingProxyType(
         date: DateType,
         Decimal: DecimalType,
         timedelta: DayTimeIntervalType,
+        UUID: StringType,
     }
 )
 

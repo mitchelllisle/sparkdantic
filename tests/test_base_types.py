@@ -1,6 +1,7 @@
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 from typing import Annotated, Literal, Optional
+from uuid import UUID
 
 import pytest
 from pydantic import BaseModel, Field, SecretBytes, SecretStr
@@ -41,6 +42,7 @@ class RawValuesModel(SparkModel):
     ii: SecretBytes
     jj: SecretStr
     x: str = Field(alias='_x')
+    uuid: UUID
 
 
 def test_raw_values():
@@ -59,6 +61,7 @@ def test_raw_values():
             StructField('ii', BinaryType(), False),
             StructField('jj', StringType(), False),
             StructField('_x', StringType(), False),
+            StructField('uuid', StringType(), False),
         ]
     )
     generated_schema = RawValuesModel.model_spark_schema()
