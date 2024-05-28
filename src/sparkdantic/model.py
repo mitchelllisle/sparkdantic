@@ -164,11 +164,11 @@ class SparkModel(BaseModel):
         return cls._post_mapping_process(generated)
 
 
-def create_spark_schema(model: Type[BaseModel]) -> StructType:
+def create_spark_schema(model: Type) -> StructType:
     """Generates a PySpark schema from the model fields.
 
     Args:
-        model (Type[BaseModel]): The pydantic model to generate the schema from.
+        model (Type): The pydantic model to generate the schema from.
 
     Returns:
         StructType: The generated PySpark schema.
@@ -317,7 +317,7 @@ def _type_to_spark(t: Type, metadata) -> Tuple[DataType, bool]:
     if origin is list:
         inner_type = args[0]
         if _is_supported_subclass(inner_type):
-            array_type = inner_type.model_spark_schema()
+            array_type = create_spark_schema(inner_type)
             inner_nullable = nullable
         else:
             # Check if it's an accepted Enum or optional SparkModel subclass
@@ -340,8 +340,8 @@ def _type_to_spark(t: Type, metadata) -> Tuple[DataType, bool]:
     elif origin is Annotated:
         # first arg of annotated type is the type, second is metadata that we don't do anything with (yet)
         t = args[0]
-    elif issubclass(t, SparkModel):
-        return t.model_spark_schema(), nullable
+    elif _is_supported_subclass(t):
+        return create_spark_schema(t), nullable
 
     if issubclass(t, Enum):
         t = _get_enum_mixin_type(t)

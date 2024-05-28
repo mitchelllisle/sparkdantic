@@ -3,6 +3,7 @@ from decimal import Decimal
 from enum import IntEnum
 from typing import Dict, Union
 
+from pydantic import BaseModel
 from pyspark.sql.types import (
     BinaryType,
     BooleanType,
@@ -26,6 +27,10 @@ class IntTestEnum(IntEnum):
     Y = 2
 
 
+class TestBase(BaseModel):
+    name: str
+
+
 class DictValuesModel(SparkModel):
     s: Dict[int, int]
     t: Dict[float, float]
@@ -39,6 +44,7 @@ class DictValuesModel(SparkModel):
     kk: Dict[IntTestEnum, IntTestEnum]
     ll: dict[str, str]
     mm: dict[str, Union[str, None]]
+    nn: dict[str, TestBase]
 
 
 def test_dict_values():
@@ -58,6 +64,13 @@ def test_dict_values():
             StructField('kk', MapType(IntegerType(), IntegerType(), False), False),
             StructField('ll', MapType(StringType(), StringType(), False), False),
             StructField('mm', MapType(StringType(), StringType(), True), False),
+            StructField(
+                'nn',
+                MapType(
+                    StringType(), StructType([StructField('name', StringType(), False)]), False
+                ),
+                False,
+            ),
         ]
     )
 
