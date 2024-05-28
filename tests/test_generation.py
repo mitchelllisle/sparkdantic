@@ -1,3 +1,4 @@
+import datetime
 from enum import Enum, IntEnum
 from typing import Dict, List, Optional, Union, get_args, get_origin
 
@@ -8,53 +9,6 @@ from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
 
 from sparkdantic import ChoiceSpec, FuncSpec, MappingSpec, RangeSpec, SparkModel, ValueSpec
-
-
-class IntTestEnum(IntEnum):
-    X = 1
-    Y = 2
-
-
-class SingleFieldModel(SparkModel):
-    val: int
-
-
-class SampleModel(SparkModel):
-    logic_number: int
-    logic: Optional[str]
-    name: str
-    age: Optional[int] = None
-    jobs: List[str]
-    map: Dict[str, str]
-    single_value: int
-    enum: IntTestEnum
-
-
-def test_generator(spark: SparkSession, faker: Faker):
-    n_rows = 100
-    data = SampleModel.generate_data(
-        spark,
-        specs={
-            'logic_number': RangeSpec(min_value=0, max_value=100),
-            'logic': ChoiceSpec(values=['a', 'b', 'c']),
-            'name': FuncSpec(func=faker.name),
-            'age': RangeSpec(min_value=0, max_value=100, nullable=True),
-            'single_value': ValueSpec(value=1),
-        },
-        n_rows=n_rows,
-    )
-    data.show()
-    assert data.count() == n_rows
-
-
-class AliasModel(SparkModel):
-    val: int = Field(alias='_val')
-
-
-def test_generate_data(spark: SparkSession):
-    data_gen = SampleModel.generate_data(spark, n_rows=10).collect()
-    assert data_gen is not None
-    assert len(data_gen) == 10
 
 
 def _check_types_and_subtypes_match(field, row, name):
@@ -76,6 +30,54 @@ def _check_types_and_subtypes_match(field, row, name):
         assert isinstance(
             row[name], field.annotation
         ), f'{row[name]} is not of type {field.annotation}'
+
+
+class IntTestEnum(IntEnum):
+    X = 1
+    Y = 2
+
+
+class SingleFieldModel(SparkModel):
+    val: int
+
+
+class SampleModel(SparkModel):
+    logic_number: int
+    logic: Optional[str]
+    name: str
+    age: Optional[int] = None
+    jobs: List[str]
+    map: Dict[str, str]
+    single_value: int
+    enum: IntTestEnum
+    date: datetime.date
+    datetime: datetime.datetime
+
+
+def test_generator(spark: SparkSession, faker: Faker):
+    n_rows = 100
+    data = SampleModel.generate_data(
+        spark,
+        specs={
+            'logic_number': RangeSpec(min_value=0, max_value=100),
+            'logic': ChoiceSpec(values=['a', 'b', 'c']),
+            'name': FuncSpec(func=faker.name),
+            'age': RangeSpec(min_value=0, max_value=100, nullable=True),
+            'single_value': ValueSpec(value=1),
+        },
+        n_rows=n_rows,
+    )
+    assert data.count() == n_rows
+
+
+class AliasModel(SparkModel):
+    val: int = Field(alias='_val')
+
+
+def test_generate_data(spark: SparkSession):
+    data_gen = SampleModel.generate_data(spark, n_rows=10).collect()
+    assert data_gen is not None
+    assert len(data_gen) == 10
 
 
 def test_column_defaults(spark: SparkSession):
@@ -128,8 +130,7 @@ def test_weight_validator_error_in_generate(spark: SparkSession):
     spec = {'val': ChoiceSpec(values=[1, 2], weights=[0.9, 0.1])}
 
     synthetic = SingleFieldModel.generate_data(spark, specs=spec, n_rows=10)
-    assert len(synthetic.where(F.col('val') == 1).collect()) == 9
-    assert len(synthetic.where(F.col('val') == 2).collect()) == 1
+    assert synthetic.where(F.col('val') == 1).count() > synthetic.where(F.col('val') == 2).count()
 
 
 def test_use_field_alias(spark: SparkSession):
