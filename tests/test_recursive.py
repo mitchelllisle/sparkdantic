@@ -1,32 +1,24 @@
-from typing import Optional
+from typing import List, Optional
 
+import pytest
 from pydantic import BaseModel
-from pyspark.sql.types import IntegerType, StringType, StructField, StructType
+from pyspark.sql.types import ArrayType, IntegerType, StringType, StructField, StructType
 
 from sparkdantic import SparkModel
 
-
-class InnerModelBase(BaseModel):
-    name: str = 'test'
-    age: int = 50
+SUPPORTED_SUB_CLASSES = [SparkModel, BaseModel]
 
 
-class InnerModel(SparkModel):
-    name: str = 'test'
-    age: int = 50
+@pytest.mark.parametrize('sub_class', SUPPORTED_SUB_CLASSES)
+def test_recursive(sub_class):
+    class InnerModel(sub_class):
+        name: str = 'test'
+        age: int = 50
 
+    class RecursiveModel(SparkModel):
+        details: InnerModel
+        created: str = 'today'
 
-class RecursiveModel(SparkModel):
-    details: InnerModel
-    created: str = 'today'
-
-
-class RecursiveModelBase(SparkModel):
-    details: InnerModelBase
-    created: str = 'today'
-
-
-def test_recursive():
     expected = StructType(
         [
             StructField(
@@ -48,32 +40,12 @@ def test_recursive():
     assert schema == expected
 
 
-def test_recursive_base_model():
-    expected = StructType(
-        [
-            StructField(
-                'details',
-                StructType(
-                    [
-                        StructField('name', StringType(), False),
-                        StructField('age', IntegerType(), False),
-                    ]
-                ),
-                False,
-            ),
-            StructField('created', StringType(), False),
-        ]
-    )
-    inner = InnerModelBase()
-    rec = RecursiveModelBase(details=inner)
-    schema = rec.model_spark_schema()
-    assert schema == expected
-
-
-def test_optional_child_classes():
-    class ChildSchema(SparkModel):
+@pytest.mark.parametrize('sub_class', SUPPORTED_SUB_CLASSES)
+def test_optional_child_classes(sub_class):
+    class ChildSchema(sub_class):
         ncol1: str
         ncol2: Optional[str] = None
+        ncol3: Optional[List[str]] = None
 
     class ParentSchema(SparkModel):
         col1: Optional[ChildSchema] = None
@@ -87,6 +59,7 @@ def test_optional_child_classes():
                     [
                         StructField('ncol1', StringType(), False),
                         StructField('ncol2', StringType(), True),
+                        StructField('ncol3', ArrayType(StringType(), False), True),
                     ]
                 ),
                 nullable=True,
