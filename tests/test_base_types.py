@@ -116,5 +116,7 @@ def test_decimal_types():
             StructField('c', DecimalType(5, 2), False),
         ]
     )
-    generated_schema = DecimalModel.model_spark_schema()
-    assert generated_schema == expected_schema
+    generated_schema1 = DecimalModel.model_spark_schema()
+    generated_schema2 = DecimalModel.model_spark_schema()
+    assert generated_schema1 == expected_schema
+    assert generated_schema2 == expected_schema

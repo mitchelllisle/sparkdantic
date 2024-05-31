@@ -2,6 +2,7 @@ import inspect
 import sys
 import typing
 from collections import deque
+from copy import deepcopy
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 from enum import Enum
@@ -309,7 +310,7 @@ def _type_to_spark(t: Type, metadata) -> Tuple[DataType, bool]:
         DataType: The corresponding PySpark data type.
     """
     nullable, t = _is_nullable(t)
-    meta = None if len(metadata) < 1 else metadata.pop()
+    meta = None if len(metadata) < 1 else deepcopy(metadata).pop()
     args = get_args(t)
     origin = get_origin(t)
 
