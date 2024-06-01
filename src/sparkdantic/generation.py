@@ -1,71 +1,301 @@
-from typing import Any, Dict, Iterable, List, Optional, Union
+from abc import ABC, abstractmethod
+from datetime import date, datetime, timedelta
+from random import choices
+from typing import Any, Callable, ClassVar, Dict, List, Optional, Union
 
-from pydantic import BaseModel, Field, field_validator
+import pyspark.sql.types as T
+from faker import Faker
 
 
-class ColumnGenerationSpec(BaseModel):
+class GenerationSpec(ABC):
     """
-    Specifications for generating a DataFrame column.
+    Abstract base class for generation specifications.
 
     Attributes:
-        min_value (Optional[float]): Min value for range. Use with `max_value` and `step` or use `data_range`.
-        max_value (Optional[float]): Max value for range. Use with `min_value` and `step` or use `data_range`.
-        step (Optional[float]): Step for range. Use with `min_value` and `max_value` or use `data_range`.
-        prefix (Optional[str]): Prefix for column name.
-        random (Optional[bool]): If True, generates random values. Defaults to False.
-        random_seed_method (Optional[str]): 'fixed' uses a fixed seed, 'hash_fieldname' uses a hash of the field name.
-        random_seed (Optional[int]): Seed for random numbers, behavior depends on `random_seed_method`.
-        distribution (Optional[str]): Distribution of random values. Can be "normal".
-        base_column (Optional[Union[str, List[str]]]): Base column(s) for controlling data generation.
-        values (Optional[List[Any]]): List of discrete values for the column.
-        weights (Optional[List[Union[float, int]]]): Weights for `values`, must sum to 1.
-        percent_nulls (Optional[float]): Fraction for nulls between 0.0 and 1.0.
-        unique_values (Optional[int]): Number of unique values. Alternate to `data_range`.
-        begin (Optional[str]): Start of date range.
-        end (Optional[str]): End of date range.
-        interval (Optional[str]): Interval for date range.
-        data_range (Optional[Union[str, dict]]): Use instead of `min_value`, `max_value`, and `step`.
-        template (Optional[str]): String template for text generation.
-        omit (Optional[bool]): If True, omit column from output.
-        expr (Optional[str]): SQL expression for data generation.
-        num_columns (Optional[int]): Number of columns for same spec.
-        num_features (Optional[int]): Synonym for `num_columns`.
-        struct_type (Optional[str]): If 'array', generates array value from multiple columns.
+        faker (ClassVar[Faker]): A class variable that generates fake data.
     """
 
-    min_value: Optional[float] = Field(default=None, serialization_alias='minValue')
-    max_value: Optional[float] = Field(default=None, serialization_alias='maxValue')
-    step: Optional[float] = None
-    prefix: Optional[str] = None
-    random: Optional[bool] = None
-    random_seed_method: Optional[str] = Field(default=None, serialization_alias='randomSeedMethod')
-    random_seed: Optional[int] = Field(default=None, serialization_alias='randomSeed')
-    distribution: Optional[str] = None
-    base_column: Optional[Union[str, List[str]]] = Field(
-        default=None, serialization_alias='baseColumn'
-    )
-    value: Optional[Any] = None
-    values: Optional[List[Any]] = None
-    dict_values: Optional[Dict[Any, Any]] = None
-    weights: Optional[List[Union[float, int]]] = None
-    percent_nulls: Optional[float] = Field(default=None, serialization_alias='percentNulls')
-    unique_values: Optional[int] = Field(default=None, serialization_alias='uniqueValues')
-    begin: Optional[str] = None
-    end: Optional[str] = None
-    interval: Optional[str] = None
-    data_range: Optional[Union[str, dict]] = Field(default=None, serialization_alias='dataRange')
-    template: Optional[str] = None
-    omit: Optional[bool] = None
-    expr: Optional[str] = None
-    num_columns: Optional[int] = Field(default=None, serialization_alias='numColumns')
-    num_features: Optional[int] = Field(default=None, serialization_alias='numFeatures')
-    struct_type: Optional[str] = Field(default=None, serialization_alias='structType')
-    mapping: Optional[Dict[Any, Any]] = Field(default=None)
-    mapping_source: Optional[str] = Field(default=None)
+    faker: ClassVar[Faker] = Faker()
 
-    @field_validator('weights', mode='before')
-    def weights_validator(cls, v: List[float]) -> List[float]:
-        summed = sum(v)
-        if summed != 1:
-            raise ValueError(f'weights must sum up to 1 for ColumnGenerationSpec not {summed}')
-        return v
+    def __init__(self, nullable: bool = False, null_prob: float = 0.1):
+        """
+        Initialize GenerationSpec.
+
+        Args:
+            nullable (bool, optional): A flag indicating if the generated value can be null. Defaults to False.
+            null_prob (float, optional): The probability of generating a null value if nullable is True. Defaults to 0.1
+        """
+        self.nullable = nullable
+        self.null_prob = null_prob
+
+    @abstractmethod
+    def value(self, *args, **kwargs):
+        """
+        Abstract method to generate a value. Must be implemented by subclasses.
+
+        Args:
+            *args: Variable length argument list.
+            **kwargs: Arbitrary keyword arguments.
+
+        Returns:
+            The generated value.
+        """
+        pass
+
+    def __call__(self, *args, **kwargs):
+        """
+        Make the instance callable. Delegates to the `value` method.
+
+        Args:
+            *args: Variable length argument list.
+            **kwargs: Arbitrary keyword arguments.
+
+        Returns:
+            The result of the `value` method.
+        """
+        return self.value(*args, **kwargs)
+
+
+class RangeSpec(GenerationSpec):
+    """
+    Class for generating a range of values.
+
+    Inherits from:
+        GenerationSpec: Abstract base class for generation specifications.
+
+    Attributes:
+        min (int): The minimum value of the range.
+        max (int): The maximum value of the range.
+        precision (Optional[int]): The precision of the generated value if it's a float. Defaults to None.
+    """
+
+    def __init__(
+        self, min_value: int, max_value: int, precision: Optional[int] = None, *args, **kwargs
+    ):
+        """
+        Initialize RangeSpec.
+
+        Args:
+            min_value (int): The minimum value of the range.
+            max_value (int): The maximum value of the range.
+            precision (Optional[int], optional): The precision of the generated value if it's a float. Defaults to None.
+            *args: Variable length argument list.
+            **kwargs: Arbitrary keyword arguments.
+        """
+        self.min = min_value
+        self.max = max_value
+        self.precision = precision
+        super().__init__(*args, **kwargs)
+
+    def value(self) -> Any:
+        """
+        Generate a value within the specified range.
+
+        If the instance is nullable and a random number is less than the null probability, return None.
+        If a precision is specified, return a random float within the range with the specified precision.
+        Otherwise, return a random integer within the range.
+
+        Returns:
+            Any: The generated value.
+        """
+        if self.nullable and self.faker.random.random() < self.null_prob:
+            return None
+        if self.precision:
+            return self.faker.random.uniform(self.min, self.max)
+        return self.faker.random_int(min=self.min, max=self.max)
+
+
+class ChoiceSpec(GenerationSpec):
+    """
+    Class for generating a value based on a list of choices.
+
+    Inherits from:
+        GenerationSpec: Abstract base class for generation specifications.
+
+    Attributes:
+        values (List[Any]): The list of values to choose from.
+        n (int): The number of elements to pick. Defaults to 1.
+        weights (Optional[List[float]]): The probabilities associated with each entry in values. Defaults to None.
+    """
+
+    def __init__(self, values: List[Any], n: int = 1, weights: Optional[List[float]] = None):
+        """
+        Initialize ChoiceSpec.
+
+        Args:
+            values (List[Any]): The list of values to choose from.
+            n (int, optional): The number of elements to pick. Defaults to 1.
+            weights (Optional[List[float]], optional): The probabilities associated with each entry in values. Defaults to None.
+        """
+        self.values = values
+        self.weights = weights
+        self.n = n
+        self._validate_weights()
+        super().__init__()
+
+    def _validate_weights(self):
+        """
+        Validate the weights.
+
+        Raises:
+            ValueError: If the sum of the weights is not 1.
+        """
+        if self.weights:
+            if sum(self.weights) != 1:
+                raise ValueError(f'Weights must sum to 1, not {sum(self.weights)}')
+
+    def value(self, *args, **kwargs):
+        """
+        Generate a value based on the choices and their weights.
+
+        Returns:
+            Any: The generated value. If n is 1, return the single picked value, otherwise return a list of picked values.
+        """
+        picked = choices(self.values, weights=self.weights, k=self.n)
+        return picked[0] if self.n < 2 else picked
+
+
+class FuncSpec(GenerationSpec):
+    """
+    Class for generating a value based on a function call.
+
+    Inherits from:
+        GenerationSpec: Abstract base class for generation specifications.
+
+    Attributes:
+        func (Callable): The function to call to generate the value.
+        args (tuple): The positional arguments to pass to the function.
+        kwargs (dict): The keyword arguments to pass to the function.
+    """
+
+    def __init__(self, func: Callable, *args, **kwargs):
+        """
+        Initialize FuncSpec.
+
+        Args:
+            func (Callable): The function to call to generate the value.
+            *args: Variable length argument list to pass to the function.
+            **kwargs: Arbitrary keyword arguments to pass to the function.
+        """
+        self.func = func
+        self.args = args
+        self.kwargs = kwargs
+        super().__init__()
+
+    def value(self, *args, **kwargs):
+        """
+        Generate a value by calling the function with the specified arguments.
+
+        Returns:
+            The result of the function call.
+        """
+        return self.func(*self.args, **self.kwargs)
+
+
+class ValueSpec(GenerationSpec):
+    """
+    Class for generating a specific value.
+
+    Inherits from:
+        GenerationSpec: Abstract base class for generation specifications.
+
+    Attributes:
+        _value (Any): The value to generate.
+    """
+
+    def __init__(self, value: Any):
+        """
+        Initialize ValueSpec.
+
+        Args:
+            value (Any): The value to generate.
+        """
+        self._value = value
+        super().__init__()
+
+    def value(self, *args, **kwargs):
+        """
+        Generate the specified value.
+
+        Returns:
+            The specified value.
+        """
+        return self._value
+
+
+class MappingSpec(GenerationSpec):
+    """
+    Class for generating a value based on a mapping.
+
+    Inherits from:
+        GenerationSpec: Abstract base class for generation specifications.
+
+    Attributes:
+        mapping (Dict[Any, Any]): The mapping of values.
+        mapping_source (str): The source of the mapping.
+        default (Optional[Any]): The default value if the mapping does not exist.
+    """
+
+    def __init__(self, mapping: Dict[Any, Any], mapping_source: str, default: Optional[Any] = None):
+        """
+        Initialize MappingSpec.
+
+        Args:
+            mapping (Dict[Any, Any]): The mapping of values.
+            mapping_source (str): The source of the mapping.
+            default (Optional[Any], optional): The default value if the mapping does not exist. Defaults to None.
+        """
+        self.mapping = mapping
+        self.mapping_source = mapping_source
+        self.default = default
+        super().__init__()
+
+    def value(self, *args, **kwargs):
+        pass
+
+
+class DateTimeSpec(GenerationSpec):
+    def __init__(self, start_date: Union[datetime, str], end_date: Union[datetime, str]):
+        self.start_date = start_date
+        self.end_date = end_date
+        super().__init__()
+
+    def value(self, *args, **kwargs):
+        return self.faker.date_time_between(start_date=self.start_date, end_date=self.end_date)
+
+
+class DateSpec(GenerationSpec):
+    def __init__(self, start_date: Union[date, str], end_date: Union[date, str]):
+        self.start_date = start_date
+        self.end_date = end_date
+        super().__init__()
+
+    def value(self, *args, **kwargs):
+        return self.faker.date_between(start_date=self.start_date, end_date=self.end_date)
+
+
+def default_generator(t: T.DataType) -> GenerationSpec:
+    """
+    Generates a default value based on the provided PySpark DataType.
+
+    This function maps PySpark DataTypes to instances of GenerationSpec subclasses, which are configured to generate
+    data appropriate for their respective PySpark DataTypes. If the input DataType is not found in the mapping, it
+    defaults to returning an instance of ValueSpec with value=None.
+
+    Args:
+        t (T.DataType): The PySpark DataType for which to generate a default value.
+
+    Returns:
+        GenerationSpec: An instance of a GenerationSpec subclass that can generate a default value for the provided DataType.
+    """
+    _end = datetime.now()
+    _start = _end - timedelta(days=90)
+    type_to_generator = {
+        T.IntegerType(): RangeSpec(min_value=0, max_value=100),
+        T.DoubleType(): RangeSpec(min_value=0, max_value=100, precision=2),
+        T.StringType(): ChoiceSpec(values=['a', 'b', 'c']),
+        T.BooleanType(): ChoiceSpec(values=[True, False]),
+        T.DateType(): DateSpec(start_date=_start, end_date=_end),
+        T.TimestampType(): DateTimeSpec(start_date=_start - timedelta(days=90), end_date=_end),
+    }
+    return type_to_generator.get(t, ValueSpec(value=None))  # type: ignore
