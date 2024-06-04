@@ -11,6 +11,7 @@ from typing import Annotated, Dict, List, Optional, Tuple, Type, Union, get_args
 from uuid import UUID
 
 import dbldatagen as dg
+from annotated_types import BaseMetadata
 from pydantic import BaseModel, ConfigDict, Field, SecretBytes, SecretStr
 from pydantic.fields import ModelPrivateAttr
 from pyspark.sql import DataFrame, SparkSession
@@ -184,17 +185,29 @@ def create_spark_schema(model: Type) -> StructType:
         else:
             field_info_extra = getattr(v, 'json_schema_extra', None) or {}
             override = field_info_extra.get('spark_type')
-            if (override not in native_spark_types) and (override is not None):
-                raise TypeError(
-                    f'Defining `spark_type` must be a valid `pyspark.sql.types` type. Got {override}'
-                )
-            if override:
-                t, nullable = _type_to_spark(override, v.metadata)
+
+            if override or t in native_spark_types:
+                t = _get_native_spark_type(override or t, v.metadata)
             else:
                 t, nullable = _type_to_spark(v.annotation, v.metadata)
             _struct_field = StructField(k, t, nullable)
             fields.append(_struct_field)
     return StructType(fields)
+
+
+def _get_native_spark_type(t: Type[DataType], meta: BaseMetadata) -> DataType:
+    """Returns the native PySpark data type for a given Python type.
+
+    Args:
+        t (Type[DataType]): The PySpark data type.
+        meta (BaseMetadata): The metadata.
+    """
+    if t not in native_spark_types:
+        raise TypeError(f'Defining `spark_type` must be a valid `pyspark.sql.types` type. Got {t}')
+    if isinstance(t, DecimalType):
+        return _set_decimal_precision_and_scale(t, meta)
+
+    return t()
 
 
 def _add_column_specs(
@@ -348,16 +361,28 @@ def _type_to_spark(t: Type, metadata) -> Tuple[DataType, bool]:
         t = _get_enum_mixin_type(t)
 
     if t in native_spark_types:
-        t = t()
+        t = _get_native_spark_type(t, meta)
     else:
         t = _get_spark_type(t, nullable)()
 
     if isinstance(t, DecimalType):
-        if meta is not None:
-            max_digits = getattr(meta, 'max_digits', 10)
-            decimal_places = getattr(meta, 'decimal_places', 0)
-            t = DecimalType(precision=max_digits, scale=decimal_places)
+        t = _set_decimal_precision_and_scale(t, meta)
+
     return t, nullable
+
+
+def _set_decimal_precision_and_scale(t: DecimalType, meta: BaseMetadata) -> DecimalType:
+    """Sets the precision and scale of a DecimalType if available in the metadata. Defaults to 10 and 0.
+
+    Args:
+        t (DecimalType): The DecimalType.
+        meta (BaseMetadata): The metadata.
+    """
+    if meta is None:
+        return t
+    max_digits = getattr(meta, 'max_digits', 10)
+    decimal_places = getattr(meta, 'decimal_places', 0)
+    return DecimalType(precision=max_digits, scale=decimal_places)
 
 
 def _is_supported_subclass(subclass: Type) -> bool:
