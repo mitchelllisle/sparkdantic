@@ -196,7 +196,7 @@ def create_spark_schema(model: Type) -> StructType:
 
 
 def _get_native_spark_type(t: Type[DataType], meta: BaseMetadata) -> DataType:
-    """Returns the native PySpark data type for a given Python type.
+    """Returns the instantiated type for a given PySpark type.
 
     Args:
         t (Type[DataType]): The PySpark data type.
