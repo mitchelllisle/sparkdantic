@@ -1,3 +1,5 @@
+from typing import Union
+
 import pytest
 from pydantic import UUID4, Field
 from pyspark.sql.types import IntegerType, LongType, StringType, StructField, StructType
@@ -8,7 +10,7 @@ from sparkdantic import SparkModel
 class MyModel(SparkModel):
     id: UUID4 = Field(spark_type=StringType)
     t: str = Field(spark_type=IntegerType)
-    o: int | None = Field(spark_type=LongType)
+    o: Union[int, None] = Field(spark_type=LongType)
 
 
 def test_override():
