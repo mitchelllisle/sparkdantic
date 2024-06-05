@@ -64,6 +64,11 @@ StructType([
     StructField('hobbies', ArrayType(StringType(), False), False)
 ])
 ```
+> ℹ️  In addition to the automatic type conversion, you can also explicitly coerce data types to Spark native types by 
+>  setting the `spark_type` attribute in the `Field` function from Pydantic, like so: `Field(spark_type=DataType)`.
+>  Please replace DataType with the actual Spark data type you want to use.
+>  This is useful when you want to use a specific data type then the one that Sparkdantic infers by default. 
+
 
 ### Generating fake data
 Once you've defined a schema you can generate some fake data for your class. Useful for testing purposes as well as for
