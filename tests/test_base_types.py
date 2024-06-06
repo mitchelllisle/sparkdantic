@@ -13,6 +13,7 @@ from pyspark.sql.types import (
     DecimalType,
     DoubleType,
     IntegerType,
+    LongType,
     StringType,
     StructField,
     StructType,
@@ -120,3 +121,25 @@ def test_decimal_types():
     generated_schema2 = DecimalModel.model_spark_schema()
     assert generated_schema1 == expected_schema
     assert generated_schema2 == expected_schema
+
+
+def test_safe_casting():
+    class MyClass(SparkModel):
+        a: int
+        b: Optional[int]
+        c: Optional[int] = None
+        d: Optional[int] = Field(spark_type=StringType)
+        e: str = Field(spark_type=IntegerType)
+        f: str
+
+    schema = MyClass.model_spark_schema(safe_casting=True)
+    assert schema == StructType(
+        [
+            StructField('a', LongType(), False),
+            StructField('b', LongType(), True),
+            StructField('c', LongType(), True),
+            StructField('d', StringType(), True),
+            StructField('e', IntegerType(), False),
+            StructField('f', StringType(), False),
+        ]
+    )

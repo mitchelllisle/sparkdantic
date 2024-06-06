@@ -121,13 +121,15 @@ class SparkModel(BaseModel):
         return data
 
     @classmethod
-    def model_spark_schema(cls) -> StructType:
+    def model_spark_schema(cls, safe_casting: bool = False) -> StructType:
         """Generates a PySpark schema from the model fields.
+        Args:
+            safe_casting (bool): Indicates whether to use safe casting for integer types.
 
         Returns:
             StructType: The generated PySpark schema.
         """
-        return create_spark_schema(cls)
+        return create_spark_schema(cls, safe_casting)
 
     @classmethod
     def generate_data(
@@ -166,11 +168,12 @@ class SparkModel(BaseModel):
         return cls._post_mapping_process(generated)
 
 
-def create_spark_schema(model: Type) -> StructType:
+def create_spark_schema(model: Type, safe_casting: bool = False) -> StructType:
     """Generates a PySpark schema from the model fields.
 
     Args:
         model (Type): The pydantic model to generate the schema from.
+        safe_casting (bool): Indicates whether to use safe casting for integer types.
 
     Returns:
         StructType: The generated PySpark schema.
@@ -181,7 +184,7 @@ def create_spark_schema(model: Type) -> StructType:
         nullable, t = _is_nullable(v.annotation)
 
         if _is_supported_subclass(t):
-            fields.append(StructField(k, create_spark_schema(t), nullable))  # type: ignore
+            fields.append(StructField(k, create_spark_schema(t, safe_casting), nullable))  # type: ignore
         else:
             field_info_extra = getattr(v, 'json_schema_extra', None) or {}
             override = field_info_extra.get('spark_type')
@@ -189,7 +192,7 @@ def create_spark_schema(model: Type) -> StructType:
             if override or t in native_spark_types:
                 t = _get_native_spark_type(override or t, v.metadata)
             else:
-                t, nullable = _type_to_spark(v.annotation, v.metadata)
+                t, nullable = _type_to_spark(v.annotation, v.metadata, safe_casting)
             _struct_field = StructField(k, t, nullable)
             fields.append(_struct_field)
     return StructType(fields)
@@ -257,12 +260,13 @@ def _add_column_specs(
         generator.withColumn(name, colType=t, nullable=nullable, structType=container)
 
 
-def _get_spark_type(t: Type, nullable: bool) -> Type[DataType]:
+def _get_spark_type(t: Type, nullable: bool, safe_casting: bool = False) -> Type[DataType]:
     """Returns the corresponding PySpark data type for a given Python type, considering nullability.
 
     Args:
         t (Type): The Python type to convert to a PySpark data type.
         nullable (bool): Indicates whether the PySpark data type should be nullable.
+        safe_casting (bool): Indicates whether to use safe casting for integer types.
 
     Returns:
         DataType: The corresponding PySpark data type.
@@ -273,7 +277,8 @@ def _get_spark_type(t: Type, nullable: bool) -> Type[DataType]:
     spark_type = type_map.get(t)
     if spark_type is None:
         raise TypeError(f'Type {t} not recognized')
-
+    if safe_casting is True and spark_type.typeName() == 'integer':
+        spark_type = LongType
     spark_type.nullable = nullable
     return spark_type
 
@@ -313,7 +318,7 @@ def _type_to_spark_type_specs(t: Type) -> Tuple[DataType, Optional[str], bool]:
     return spark_type, None, nullable
 
 
-def _type_to_spark(t: Type, metadata) -> Tuple[DataType, bool]:
+def _type_to_spark(t: Type, metadata, safe_casting: bool = False) -> Tuple[DataType, bool]:
     """Converts a given Python type to a corresponding PySpark data type.
 
     Args:
@@ -331,7 +336,7 @@ def _type_to_spark(t: Type, metadata) -> Tuple[DataType, bool]:
     if origin is list:
         inner_type = args[0]
         if _is_supported_subclass(inner_type):
-            array_type = create_spark_schema(inner_type)
+            array_type = create_spark_schema(inner_type, safe_casting)
             inner_nullable = nullable
         else:
             # Check if it's an accepted Enum or optional SparkModel subclass
@@ -355,7 +360,7 @@ def _type_to_spark(t: Type, metadata) -> Tuple[DataType, bool]:
         # first arg of annotated type is the type, second is metadata that we don't do anything with (yet)
         t = args[0]
     elif _is_supported_subclass(t):
-        return create_spark_schema(t), nullable
+        return create_spark_schema(t, safe_casting), nullable
 
     if issubclass(t, Enum):
         t = _get_enum_mixin_type(t)
@@ -363,7 +368,7 @@ def _type_to_spark(t: Type, metadata) -> Tuple[DataType, bool]:
     if t in native_spark_types:
         t = _get_native_spark_type(t, meta)
     else:
-        t = _get_spark_type(t, nullable)()
+        t = _get_spark_type(t, nullable, safe_casting)()
 
     if isinstance(t, DecimalType):
         t = _set_decimal_precision_and_scale(t, meta)
