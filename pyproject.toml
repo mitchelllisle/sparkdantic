@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "sparkdantic"
-version = "0.25.0"
+version = "0.26.0"
 description = "A pydantic -> spark schema library"
 authors = ["Mitchell Lisle <m.lisle90@gmail.com>"]
 readme = "README.md"
@@ -9,7 +9,7 @@ packages = [{include = "sparkdantic", from = "src"}]
 [tool.poetry.dependencies]
 python = "^3.9,<4.0.0"
 pydantic = "^2.1.1"
-pyspark = "^3.4.1"
+pyspark = "^3.3.0"
 dbldatagen = "^0.3.5"
 jmespath = "^1.0.1"
 numpy = "^1.25.2"
