@@ -443,12 +443,12 @@ files = [
 
 [[package]]
 name = "dlint"
-version = "0.14.1"
+version = "0.15.0"
 description = "Dlint is a tool for encouraging best coding practices and helping ensure Python code is secure."
 optional = false
 python-versions = "*"
 files = [
-    {file = "dlint-0.14.1-py3-none-any.whl", hash = "sha256:8caa4271ab6f69bba2785bb565b636eeb40baffd446c85380f848fb4abd6aa2d"},
+    {file = "dlint-0.15.0-py3-none-any.whl", hash = "sha256:cc5bfa5a887427d808a3f188e5e2934ffb5bb43336f18710215b19d719d31ea7"},
 ]
 
 [package.dependencies]
@@ -2180,4 +2180,4 @@ testing = ["big-O", "jaraco.functools", "jaraco.itertools", "more-itertools", "p
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.9,<4.0.0"
-content-hash = "037ed9fb5f5055c39ed0923e07f67c9581a131fd3bad8df7783ec06e732ce477"
+content-hash = "2b59db0ef699ac0144c69a3ab05513a65d47654649ae65f6db7dbf40b1031794"
