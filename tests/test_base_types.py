@@ -65,7 +65,7 @@ def test_raw_values():
             StructField('uuid', StringType(), False),
         ]
     )
-    generated_schema = RawValuesModel.model_spark_schema()
+    generated_schema = RawValuesModel.model_spark_schema(by_alias=True)
     assert generated_schema == expected_schema
 
 
@@ -141,5 +141,40 @@ def test_safe_casting():
             StructField('d', StringType(), True),
             StructField('e', IntegerType(), False),
             StructField('f', StringType(), False),
+        ]
+    )
+
+
+def test_field_aliases():
+    class SubModel(SparkModel):
+        z: int = Field(alias='_z')
+    
+    class ModelWithAliases(SparkModel):
+        a: int = Field(alias='_a')
+        b: int = Field(serialization_alias='_b')
+        c: int = Field(alias='_c', serialization_alias='__c')
+        d: int
+        _e: int  # Omitted from the model schema
+        f: SubModel = Field(alias='_f')
+
+    aliased_schema = ModelWithAliases.model_spark_schema()
+    assert aliased_schema == StructType(
+        [
+            StructField('_a', IntegerType(), False),
+            StructField('_b', IntegerType(), False),
+            StructField('__c', IntegerType(), False),
+            StructField('d', IntegerType(), False),
+            StructField('_f', StructType([StructField('_z', IntegerType(), False)]), False)
+        ]
+    )
+
+    schema = ModelWithAliases.model_spark_schema(by_alias=False)
+    assert schema == StructType(
+        [
+            StructField('a', IntegerType(), False),
+            StructField('b', IntegerType(), False),
+            StructField('c', IntegerType(), False),
+            StructField('d', IntegerType(), False),
+            StructField('f', StructType([StructField('z', IntegerType(), False)]), False)
         ]
     )

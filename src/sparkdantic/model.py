@@ -121,15 +121,16 @@ class SparkModel(BaseModel):
         return data
 
     @classmethod
-    def model_spark_schema(cls, safe_casting: bool = False) -> StructType:
+    def model_spark_schema(cls, safe_casting: bool = False, by_alias: bool = True) -> StructType:
         """Generates a PySpark schema from the model fields.
         Args:
             safe_casting (bool): Indicates whether to use safe casting for integer types.
+            by_alias (bool): Indicates whether to use attribute aliases (`serialization_alias` or `alias`) or not.
 
         Returns:
             StructType: The generated PySpark schema.
         """
-        return create_spark_schema(cls, safe_casting)
+        return create_spark_schema(cls, safe_casting, by_alias)
 
     @classmethod
     def generate_data(
@@ -168,23 +169,29 @@ class SparkModel(BaseModel):
         return cls._post_mapping_process(generated)
 
 
-def create_spark_schema(model: Type, safe_casting: bool = False) -> StructType:
+def create_spark_schema(
+    model: Type, safe_casting: bool = False, by_alias: bool = True
+) -> StructType:
     """Generates a PySpark schema from the model fields.
 
     Args:
         model (Type): The pydantic model to generate the schema from.
         safe_casting (bool): Indicates whether to use safe casting for integer types.
+        by_alias (bool): Indicates whether to use attribute aliases (`serialization_alias` or `alias`) or not.
 
     Returns:
         StructType: The generated PySpark schema.
     """
     fields = []
     for k, v in model.model_fields.items():
-        k = getattr(v, 'alias') or k
+        if by_alias:
+            # When both serialzation_alias and alias are used, serialization_alias takes precedence
+            k = getattr(v, 'serialization_alias') or getattr(v, 'alias') or k
+
         nullable, t = _is_nullable(v.annotation)
 
         if _is_supported_subclass(t):
-            fields.append(StructField(k, create_spark_schema(t, safe_casting), nullable))  # type: ignore
+            fields.append(StructField(k, create_spark_schema(t, safe_casting, by_alias), nullable))  # type: ignore
         else:
             field_info_extra = getattr(v, 'json_schema_extra', None) or {}
             override = field_info_extra.get('spark_type')
