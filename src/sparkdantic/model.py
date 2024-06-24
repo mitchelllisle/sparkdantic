@@ -138,6 +138,7 @@ class SparkModel(BaseModel):
         spark: SparkSession,
         n_rows: int = 100,
         specs: Optional[ColumnSpecs] = None,
+        by_alias: bool = True,
         **kwargs,
     ) -> DataFrame:
         """Generates PySpark DataFrame based on the schema and the column specs.
@@ -146,6 +147,7 @@ class SparkModel(BaseModel):
             spark (SparkSession): The Spark session.
             n_rows (int, optional): Number of rows. Defaults to 100.
             specs (Optional[ColumnSpecs]): Column specifications. Defaults to None.
+            by_alias (bool): Indicates whether to use attribute aliases (`serialization_alias` or `alias`) or not.
 
         Returns:
             DataFrame: The generated PySpark DataFrame.
@@ -154,7 +156,9 @@ class SparkModel(BaseModel):
         generator = dg.DataGenerator(spark, seedColumnName='_seed_id', rows=n_rows, **kwargs)
         for name, field in cls.model_fields.items():
             spec = specs.get(name)
-            name = getattr(field, 'alias') or name
+            if by_alias:
+                # When both serialzation_alias and alias are used, serialization_alias takes precedence
+                name = getattr(field, 'serialization_alias') or getattr(field, 'alias') or name
 
             if (
                 spec is None
