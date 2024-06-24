@@ -86,6 +86,8 @@ type_map = MappingProxyType(
 
 MixinType = Union[Type[int], Type[str]]
 
+BaseModelOrSparkModel = Union[BaseModel, 'SparkModel']
+
 ColumnSpecs = Optional[Dict[str, ColumnGenerationSpec]]
 
 
@@ -174,18 +176,21 @@ class SparkModel(BaseModel):
 
 
 def create_spark_schema(
-    model: Type, safe_casting: bool = False, by_alias: bool = True
+    model: Type[BaseModelOrSparkModel], safe_casting: bool = False, by_alias: bool = True
 ) -> StructType:
     """Generates a PySpark schema from the model fields.
 
     Args:
-        model (Type): The pydantic model to generate the schema from.
+        model (pydantic.BaseModel or SparkModel): The pydantic model to generate the schema from.
         safe_casting (bool): Indicates whether to use safe casting for integer types.
         by_alias (bool): Indicates whether to use attribute aliases (`serialization_alias` or `alias`) or not.
 
     Returns:
         StructType: The generated PySpark schema.
     """
+    if not _is_supported_subclass(model):
+        raise TypeError('`model` must be of type `SparkModel` or `pydantic.BaseModel`')
+
     fields = []
     for name, info in model.model_fields.items():
         if by_alias:
