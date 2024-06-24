@@ -158,7 +158,7 @@ class SparkModel(BaseModel):
             spec = specs.get(name)
             if by_alias:
                 # When both serialzation_alias and alias are used, serialization_alias takes precedence
-                name = getattr(field, 'serialization_alias') or getattr(field, 'alias') or name
+                name = field.serialization_alias or field.alias or name
 
             if (
                 spec is None
@@ -187,24 +187,24 @@ def create_spark_schema(
         StructType: The generated PySpark schema.
     """
     fields = []
-    for k, v in model.model_fields.items():
+    for name, info in model.model_fields.items():
         if by_alias:
             # When both serialzation_alias and alias are used, serialization_alias takes precedence
-            k = getattr(v, 'serialization_alias') or getattr(v, 'alias') or k
+            name = info.serialization_alias or info.alias or name
 
-        nullable, t = _is_nullable(v.annotation)
+        nullable, t = _is_nullable(info.annotation)
 
         if _is_supported_subclass(t):
-            fields.append(StructField(k, create_spark_schema(t, safe_casting, by_alias), nullable))  # type: ignore
+            fields.append(StructField(name, create_spark_schema(t, safe_casting, by_alias), nullable))  # type: ignore
         else:
-            field_info_extra = getattr(v, 'json_schema_extra', None) or {}
+            field_info_extra = info.json_schema_extra or {}
             override = field_info_extra.get('spark_type')
 
             if override or t in native_spark_types:
-                t = _get_native_spark_type(override or t, v.metadata)
+                t = _get_native_spark_type(override or t, info.metadata)
             else:
-                t, nullable = _type_to_spark(v.annotation, v.metadata, safe_casting)
-            _struct_field = StructField(k, t, nullable)
+                t, nullable = _type_to_spark(info.annotation, info.metadata, safe_casting)
+            _struct_field = StructField(name, t, nullable)
             fields.append(_struct_field)
     return StructType(fields)
 
