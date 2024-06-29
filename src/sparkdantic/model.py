@@ -12,8 +12,9 @@ from uuid import UUID
 
 import dbldatagen as dg
 from annotated_types import BaseMetadata
-from pydantic import BaseModel, ConfigDict, Field, SecretBytes, SecretStr
-from pydantic.fields import ModelPrivateAttr
+from pydantic import AliasChoices, AliasPath, BaseModel, ConfigDict, Field, SecretBytes, SecretStr
+from pydantic.fields import FieldInfo, ModelPrivateAttr
+from pydantic.json_schema import JsonSchemaMode
 from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql import functions as F  # noqa
 from pyspark.sql.types import (
@@ -120,16 +121,20 @@ class SparkModel(BaseModel):
         return data
 
     @classmethod
-    def model_spark_schema(cls, safe_casting: bool = False, by_alias: bool = True) -> StructType:
-        """Generates a PySpark schema from the model fields.
+    def model_spark_schema(
+        cls, safe_casting: bool = False, by_alias: bool = True, mode: JsonSchemaMode = 'validation'
+    ) -> StructType:
+        """Generates a PySpark schema from the model fields. This operates similarly to `pydantic.BaseModel.model_json_schema()`.
+
         Args:
             safe_casting (bool): Indicates whether to use safe casting for integer types.
             by_alias (bool): Indicates whether to use attribute aliases (`serialization_alias` or `alias`) or not.
+            mode (pydantic.json_schema.JsonSchemaMode): The mode in which to generate the schema.
 
         Returns:
-            StructType: The generated PySpark schema.
+            pyspark.sql.types.StructType: The generated PySpark schema.
         """
-        return create_spark_schema(cls, safe_casting, by_alias)
+        return create_spark_schema(cls, safe_casting, by_alias, mode)
 
     @classmethod
     def generate_data(
@@ -146,7 +151,7 @@ class SparkModel(BaseModel):
             spark (SparkSession): The Spark session.
             n_rows (int, optional): Number of rows. Defaults to 100.
             specs (Optional[ColumnSpecs]): Column specifications. Defaults to None.
-            by_alias (bool): Indicates whether to use attribute aliases (`serialization_alias` or `alias`) or not.
+            by_alias (bool): Indicates whether to use attribute aliases or not.
 
         Returns:
             DataFrame: The generated PySpark DataFrame.
@@ -156,8 +161,7 @@ class SparkModel(BaseModel):
         for name, field in cls.model_fields.items():
             spec = specs.get(name)
             if by_alias:
-                # When both serialzation_alias and alias are used, serialization_alias takes precedence
-                name = field.serialization_alias or field.alias or name
+                name = _get_field_alias(name, field, mode='validation')
 
             if (
                 spec is None
@@ -173,17 +177,21 @@ class SparkModel(BaseModel):
 
 
 def create_spark_schema(
-    model: Type[BaseModelOrSparkModel], safe_casting: bool = False, by_alias: bool = True
+    model: Type[BaseModelOrSparkModel],
+    safe_casting: bool = False,
+    by_alias: bool = True,
+    mode: JsonSchemaMode = 'validation',
 ) -> StructType:
-    """Generates a PySpark schema from the model fields.
+    """Generates a PySpark schema from the model fields. This operates similarly to `pydantic.BaseModel.model_json_schema()`.
 
     Args:
         model (pydantic.BaseModel or SparkModel): The pydantic model to generate the schema from.
         safe_casting (bool): Indicates whether to use safe casting for integer types.
         by_alias (bool): Indicates whether to use attribute aliases (`serialization_alias` or `alias`) or not.
+        mode (pydantic.json_schema.JsonSchemaMode): The mode in which to generate the schema.
 
     Returns:
-        StructType: The generated PySpark schema.
+        pyspark.sql.types.StructType: The generated PySpark schema.
     """
     if not _is_supported_subclass(model):
         raise TypeError('`model` must be of type `SparkModel` or `pydantic.BaseModel`')
@@ -191,13 +199,12 @@ def create_spark_schema(
     fields = []
     for name, info in model.model_fields.items():
         if by_alias:
-            # When both serialzation_alias and alias are used, serialization_alias takes precedence
-            name = info.serialization_alias or info.alias or name
+            name = _get_field_alias(name, info, mode)
 
         nullable, t = _is_nullable(info.annotation)
 
         if _is_supported_subclass(t):
-            fields.append(StructField(name, create_spark_schema(t, safe_casting, by_alias), nullable))  # type: ignore
+            fields.append(StructField(name, create_spark_schema(t, safe_casting, by_alias, mode), nullable))  # type: ignore
         else:
             field_info_extra = info.json_schema_extra or {}
             override = field_info_extra.get('spark_type')
@@ -448,3 +455,29 @@ def _spec_weights_to_row_count(generator: dg.DataGenerator, weights: List[float]
         List[int]: List of row counts.
     """
     return [int(generator.rowCount * w) for w in weights]
+
+
+def _get_field_alias(name: str, field_info: FieldInfo, mode: JsonSchemaMode = 'validation') -> str:
+    """Returns the field's alias (if defined) or name based on the mode.
+    When both alias and serialization_alias are used, serialization_alias takes precedence.
+    Similarly, when both alias and validation_alias are used, validation_alias takes precedence.
+
+    Args:
+        name (str): The model field name.
+        field_info (pydantic.FieldInfo): The model field info from which to get the alias or name.
+        mode (pydantic.json_schema.JsonSchemaMode): The mode in which to generate the schema.
+
+    Returns:
+        str: The field alias or name.
+    """
+    if mode == 'serialization':
+        alias = field_info.serialization_alias or field_info.alias
+    elif mode == 'validation':
+        validation_alias = field_info.validation_alias
+        if validation_alias is None or isinstance(validation_alias, AliasPath):
+            alias = field_info.alias
+        elif isinstance(validation_alias, AliasChoices):
+            alias = validation_alias.choices[0]
+        else:
+            alias = validation_alias
+    return alias or name
