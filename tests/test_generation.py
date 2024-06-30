@@ -34,6 +34,7 @@ class SampleModel(SparkModel):
 
 class AliasModel(SparkModel):
     val: int = Field(alias='_val')
+    s_val: str = Field(serialization_alias='serialized_val', validation_alias='validation_val')
 
 
 def test_generate_data(spark: SparkSession):
@@ -126,6 +127,6 @@ def test_missing_mapping_source(spark: SparkSession):
 
 
 def test_use_field_alias(spark: SparkSession):
-    data_gen = AliasModel.generate_data(spark, n_rows=1)
+    data_gen = AliasModel.generate_data(spark, n_rows=1, by_alias=True)
 
-    assert data_gen.columns == ['_val']
+    assert sorted(data_gen.columns) == sorted(['_val', 'validation_val'])

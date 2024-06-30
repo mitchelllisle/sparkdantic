@@ -12,8 +12,9 @@ from uuid import UUID
 
 import dbldatagen as dg
 from annotated_types import BaseMetadata
-from pydantic import BaseModel, ConfigDict, Field, SecretBytes, SecretStr
-from pydantic.fields import ModelPrivateAttr
+from pydantic import AliasChoices, AliasPath, BaseModel, ConfigDict, Field, SecretBytes, SecretStr
+from pydantic.fields import FieldInfo, ModelPrivateAttr
+from pydantic.json_schema import JsonSchemaMode
 from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql import functions as F  # noqa
 from pyspark.sql.types import (
@@ -86,6 +87,8 @@ type_map = MappingProxyType(
 
 MixinType = Union[Type[int], Type[str]]
 
+BaseModelOrSparkModel = Union[BaseModel, 'SparkModel']
+
 ColumnSpecs = Optional[Dict[str, ColumnGenerationSpec]]
 
 
@@ -94,10 +97,7 @@ class SparkModel(BaseModel):
 
     Methods:
         model_spark_schema: Generates a PySpark schema from the model fields.
-        _is_nullable: Determines if a type is nullable and returns the type without the Union.
-        _get_spark_type: Returns the corresponding PySpark data type for a given Python type, considering nullability.
-        _get_enum_mixin_type: Returns the mixin type of Enum.
-        _type_to_spark: Converts a given Python type to a corresponding PySpark data type.
+        generate_data: Generates PySpark DataFrame based on the schema and the column specs.
     """
 
     model_config = ConfigDict(arbitrary_types_allowed=True, use_enum_values=True)
@@ -121,15 +121,20 @@ class SparkModel(BaseModel):
         return data
 
     @classmethod
-    def model_spark_schema(cls, safe_casting: bool = False) -> StructType:
-        """Generates a PySpark schema from the model fields.
+    def model_spark_schema(
+        cls, safe_casting: bool = False, by_alias: bool = True, mode: JsonSchemaMode = 'validation'
+    ) -> StructType:
+        """Generates a PySpark schema from the model fields. This operates similarly to `pydantic.BaseModel.model_json_schema()`.
+
         Args:
             safe_casting (bool): Indicates whether to use safe casting for integer types.
+            by_alias (bool): Indicates whether to use attribute aliases (`serialization_alias` or `alias`) or not.
+            mode (pydantic.json_schema.JsonSchemaMode): The mode in which to generate the schema.
 
         Returns:
-            StructType: The generated PySpark schema.
+            pyspark.sql.types.StructType: The generated PySpark schema.
         """
-        return create_spark_schema(cls, safe_casting)
+        return create_spark_schema(cls, safe_casting, by_alias, mode)
 
     @classmethod
     def generate_data(
@@ -137,6 +142,7 @@ class SparkModel(BaseModel):
         spark: SparkSession,
         n_rows: int = 100,
         specs: Optional[ColumnSpecs] = None,
+        by_alias: bool = True,
         **kwargs,
     ) -> DataFrame:
         """Generates PySpark DataFrame based on the schema and the column specs.
@@ -145,6 +151,7 @@ class SparkModel(BaseModel):
             spark (SparkSession): The Spark session.
             n_rows (int, optional): Number of rows. Defaults to 100.
             specs (Optional[ColumnSpecs]): Column specifications. Defaults to None.
+            by_alias (bool): Indicates whether to use attribute aliases or not.
 
         Returns:
             DataFrame: The generated PySpark DataFrame.
@@ -153,7 +160,8 @@ class SparkModel(BaseModel):
         generator = dg.DataGenerator(spark, seedColumnName='_seed_id', rows=n_rows, **kwargs)
         for name, field in cls.model_fields.items():
             spec = specs.get(name)
-            name = getattr(field, 'alias') or name
+            if by_alias:
+                name = _get_field_alias(name, field, mode='validation')
 
             if (
                 spec is None
@@ -168,32 +176,44 @@ class SparkModel(BaseModel):
         return cls._post_mapping_process(generated)
 
 
-def create_spark_schema(model: Type, safe_casting: bool = False) -> StructType:
-    """Generates a PySpark schema from the model fields.
+def create_spark_schema(
+    model: Type[BaseModelOrSparkModel],
+    safe_casting: bool = False,
+    by_alias: bool = True,
+    mode: JsonSchemaMode = 'validation',
+) -> StructType:
+    """Generates a PySpark schema from the model fields. This operates similarly to `pydantic.BaseModel.model_json_schema()`.
 
     Args:
-        model (Type): The pydantic model to generate the schema from.
+        model (pydantic.BaseModel or SparkModel): The pydantic model to generate the schema from.
         safe_casting (bool): Indicates whether to use safe casting for integer types.
+        by_alias (bool): Indicates whether to use attribute aliases (`serialization_alias` or `alias`) or not.
+        mode (pydantic.json_schema.JsonSchemaMode): The mode in which to generate the schema.
 
     Returns:
-        StructType: The generated PySpark schema.
+        pyspark.sql.types.StructType: The generated PySpark schema.
     """
+    if not _is_supported_subclass(model):
+        raise TypeError('`model` must be of type `SparkModel` or `pydantic.BaseModel`')
+
     fields = []
-    for k, v in model.model_fields.items():
-        k = getattr(v, 'alias') or k
-        nullable, t = _is_nullable(v.annotation)
+    for name, info in model.model_fields.items():
+        if by_alias:
+            name = _get_field_alias(name, info, mode)
+
+        nullable, t = _is_nullable(info.annotation)
 
         if _is_supported_subclass(t):
-            fields.append(StructField(k, create_spark_schema(t, safe_casting), nullable))  # type: ignore
+            fields.append(StructField(name, create_spark_schema(t, safe_casting, by_alias, mode), nullable))  # type: ignore
         else:
-            field_info_extra = getattr(v, 'json_schema_extra', None) or {}
+            field_info_extra = info.json_schema_extra or {}
             override = field_info_extra.get('spark_type')
 
             if override or t in native_spark_types:
-                t = _get_native_spark_type(override or t, v.metadata)
+                t = _get_native_spark_type(override or t, info.metadata)
             else:
-                t, nullable = _type_to_spark(v.annotation, v.metadata, safe_casting)
-            _struct_field = StructField(k, t, nullable)
+                t, nullable = _type_to_spark(info.annotation, info.metadata, safe_casting)
+            _struct_field = StructField(name, t, nullable)
             fields.append(_struct_field)
     return StructType(fields)
 
@@ -435,3 +455,29 @@ def _spec_weights_to_row_count(generator: dg.DataGenerator, weights: List[float]
         List[int]: List of row counts.
     """
     return [int(generator.rowCount * w) for w in weights]
+
+
+def _get_field_alias(name: str, field_info: FieldInfo, mode: JsonSchemaMode = 'validation') -> str:
+    """Returns the field's alias (if defined) or name based on the mode.
+    When both alias and serialization_alias are used, serialization_alias takes precedence.
+    Similarly, when both alias and validation_alias are used, validation_alias takes precedence.
+
+    Args:
+        name (str): The model field name.
+        field_info (pydantic.FieldInfo): The model field info from which to get the alias or name.
+        mode (pydantic.json_schema.JsonSchemaMode): The mode in which to generate the schema.
+
+    Returns:
+        str: The field alias or name.
+    """
+    if mode == 'serialization':
+        alias = field_info.serialization_alias or field_info.alias
+    elif mode == 'validation':
+        validation_alias = field_info.validation_alias
+        if validation_alias is None or isinstance(validation_alias, AliasPath):
+            alias = field_info.alias
+        elif isinstance(validation_alias, AliasChoices):
+            alias = validation_alias.choices[0]
+        else:
+            alias = validation_alias
+    return alias or name
