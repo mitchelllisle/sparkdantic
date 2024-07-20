@@ -101,22 +101,6 @@ class SparkModel(BaseModel):
     _non_standard_fields: ModelPrivateAttr = {'value', 'mapping', 'mapping_source'}
 
     @classmethod
-    def _post_mapping_process(cls, data: DataFrame) -> DataFrame:
-        """Processes the DataFrame after mapping.
-
-        Args:
-            data (DataFrame): The data frame to process.
-
-        Returns:
-            DataFrame: The processed DataFrame.
-        """
-        for _ in range(len(cls._mapped_field.default)):
-            target, mapping, source = cls._mapped_field.default.popleft()
-            mapping_expr = F.create_map([F.lit(x) for x in sum(mapping.items(), ())])
-            data = data.withColumn(target, mapping_expr.getItem(data[source]))
-        return data
-
-    @classmethod
     def model_spark_schema(
         cls, safe_casting: bool = False, by_alias: bool = True, mode: JsonSchemaMode = 'validation'
     ) -> StructType:
@@ -237,21 +221,6 @@ def _get_enum_mixin_type(t: EnumType) -> MixinType:
         raise TypeError(f'Enum {t} is not supported. Only int and str mixins are supported.')
 
 
-def _type_to_spark_type_specs(t: Type) -> Tuple[DataType, Optional[str], bool]:
-    """Converts a given type to its corresponding Spark data type specifications.
-
-    Args:
-        t (Type): The Python type.
-
-    Returns:
-        Tuple[DataType, Optional[str], bool]: The corresponding Spark DataType, container type, and nullability.
-    """
-    spark_type, nullable = _type_to_spark(t, [])
-    if isinstance(spark_type, ArrayType):
-        return spark_type.elementType, ArrayType.typeName(), nullable
-    return spark_type, None, nullable
-
-
 def _type_to_spark(t: Type, metadata, safe_casting: bool = False) -> Tuple[DataType, bool]:
     """Converts a given Python type to a corresponding PySpark data type.
 
@@ -356,19 +325,6 @@ def _is_nullable(t: Type) -> Tuple[bool, Type]:
             t = type_args[0]
             return True, t
     return False, t
-
-
-def _spec_weights_to_row_count(generator: dg.DataGenerator, weights: List[float]) -> List[int]:
-    """Converts weights to row count.
-
-    Args:
-        generator (dg.DataGenerator): The data generator.
-        weights (List[float]): The list of weights.
-
-    Returns:
-        List[int]: List of row counts.
-    """
-    return [int(generator.rowCount * w) for w in weights]
 
 
 def _get_field_alias(name: str, field_info: FieldInfo, mode: JsonSchemaMode = 'validation') -> str:
