@@ -1,4 +1,3 @@
-import dbldatagen as dg
 import pytest
 from faker import Faker
 
