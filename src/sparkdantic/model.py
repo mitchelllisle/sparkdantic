@@ -7,15 +7,13 @@ from datetime import date, datetime, timedelta
 from decimal import Decimal
 from enum import Enum
 from types import MappingProxyType
-from typing import Annotated, List, Optional, Tuple, Type, Union, get_args, get_origin
+from typing import Annotated, Tuple, Type, Union, get_args, get_origin
 from uuid import UUID
 
-import dbldatagen as dg
 from annotated_types import BaseMetadata
 from pydantic import AliasChoices, AliasPath, BaseModel, ConfigDict, SecretBytes, SecretStr
 from pydantic.fields import FieldInfo, ModelPrivateAttr
 from pydantic.json_schema import JsonSchemaMode
-from pyspark.sql import DataFrame
 from pyspark.sql import functions as F  # noqa
 from pyspark.sql.types import (
     ArrayType,
