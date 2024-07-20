@@ -7,15 +7,13 @@ from datetime import date, datetime, timedelta
 from decimal import Decimal
 from enum import Enum
 from types import MappingProxyType
-from typing import Annotated, Dict, List, Optional, Tuple, Type, Union, get_args, get_origin
+from typing import Annotated, Tuple, Type, Union, get_args, get_origin
 from uuid import UUID
 
-import dbldatagen as dg
 from annotated_types import BaseMetadata
-from pydantic import AliasChoices, AliasPath, BaseModel, ConfigDict, Field, SecretBytes, SecretStr
+from pydantic import AliasChoices, AliasPath, BaseModel, ConfigDict, SecretBytes, SecretStr
 from pydantic.fields import FieldInfo, ModelPrivateAttr
 from pydantic.json_schema import JsonSchemaMode
-from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql import functions as F  # noqa
 from pyspark.sql.types import (
     ArrayType,
@@ -34,8 +32,6 @@ from pyspark.sql.types import (
     StructType,
     TimestampType,
 )
-
-from sparkdantic.generation import ColumnGenerationSpec
 
 if sys.version_info > (3, 10):
     from types import UnionType  # pragma: no cover
@@ -89,8 +85,6 @@ MixinType = Union[Type[int], Type[str]]
 
 BaseModelOrSparkModel = Union[BaseModel, 'SparkModel']
 
-ColumnSpecs = Optional[Dict[str, ColumnGenerationSpec]]
-
 
 class SparkModel(BaseModel):
     """Spark Model representing a Pydantic BaseModel with additional methods to convert it to a PySpark schema.
@@ -105,26 +99,11 @@ class SparkModel(BaseModel):
     _non_standard_fields: ModelPrivateAttr = {'value', 'mapping', 'mapping_source'}
 
     @classmethod
-    def _post_mapping_process(cls, data: DataFrame) -> DataFrame:
-        """Processes the DataFrame after mapping.
-
-        Args:
-            data (DataFrame): The data frame to process.
-
-        Returns:
-            DataFrame: The processed DataFrame.
-        """
-        for _ in range(len(cls._mapped_field.default)):
-            target, mapping, source = cls._mapped_field.default.popleft()
-            mapping_expr = F.create_map([F.lit(x) for x in sum(mapping.items(), ())])
-            data = data.withColumn(target, mapping_expr.getItem(data[source]))
-        return data
-
-    @classmethod
     def model_spark_schema(
         cls, safe_casting: bool = False, by_alias: bool = True, mode: JsonSchemaMode = 'validation'
     ) -> StructType:
-        """Generates a PySpark schema from the model fields. This operates similarly to `pydantic.BaseModel.model_json_schema()`.
+        """Generates a PySpark schema from the model fields. This operates similarly to
+        `pydantic.BaseModel.model_json_schema()`.
 
         Args:
             safe_casting (bool): Indicates whether to use safe casting for integer types.
@@ -136,45 +115,6 @@ class SparkModel(BaseModel):
         """
         return create_spark_schema(cls, safe_casting, by_alias, mode)
 
-    @classmethod
-    def generate_data(
-        cls,
-        spark: SparkSession,
-        n_rows: int = 100,
-        specs: Optional[ColumnSpecs] = None,
-        by_alias: bool = True,
-        **kwargs,
-    ) -> DataFrame:
-        """Generates PySpark DataFrame based on the schema and the column specs.
-
-        Args:
-            spark (SparkSession): The Spark session.
-            n_rows (int, optional): Number of rows. Defaults to 100.
-            specs (Optional[ColumnSpecs]): Column specifications. Defaults to None.
-            by_alias (bool): Indicates whether to use attribute aliases or not.
-
-        Returns:
-            DataFrame: The generated PySpark DataFrame.
-        """
-        specs = {} if not specs else specs
-        generator = dg.DataGenerator(spark, seedColumnName='_seed_id', rows=n_rows, **kwargs)
-        for name, field in cls.model_fields.items():
-            spec = specs.get(name)
-            if by_alias:
-                name = _get_field_alias(name, field, mode='validation')
-
-            if (
-                spec is None
-                and inspect.isclass(field.annotation)
-                and issubclass(field.annotation, Enum)
-            ):
-                # For Enums, default to using all values specified in the Enum
-                spec = ColumnGenerationSpec(values=[item.value for item in field.annotation])
-
-            _add_column_specs(cls, generator, spec, name, field)  # type: ignore
-        generated = generator.build()
-        return cls._post_mapping_process(generated)
-
 
 def create_spark_schema(
     model: Type[BaseModelOrSparkModel],
@@ -182,7 +122,8 @@ def create_spark_schema(
     by_alias: bool = True,
     mode: JsonSchemaMode = 'validation',
 ) -> StructType:
-    """Generates a PySpark schema from the model fields. This operates similarly to `pydantic.BaseModel.model_json_schema()`.
+    """Generates a PySpark schema from the model fields. This operates similarly to
+    `pydantic.BaseModel.model_json_schema()`.
 
     Args:
         model (pydantic.BaseModel or SparkModel): The pydantic model to generate the schema from.
@@ -204,7 +145,9 @@ def create_spark_schema(
         nullable, t = _is_nullable(info.annotation)
 
         if _is_supported_subclass(t):
-            fields.append(StructField(name, create_spark_schema(t, safe_casting, by_alias, mode), nullable))  # type: ignore
+            fields.append(
+                StructField(name, create_spark_schema(t, safe_casting, by_alias, mode), nullable)
+            )  # type: ignore
         else:
             field_info_extra = info.json_schema_extra or {}
             override = field_info_extra.get('spark_type')
@@ -231,53 +174,6 @@ def _get_native_spark_type(t: Type[DataType], meta: BaseMetadata) -> DataType:
         return _set_decimal_precision_and_scale(t, meta)
 
     return t()
-
-
-def _add_column_specs(
-    model: Type[SparkModel],
-    generator: dg.DataGenerator,
-    spec: ColumnGenerationSpec,
-    name: str,
-    field: Field,
-):
-    """Adds column specifications to the DataGenerator.
-
-    Args:
-        model (Type[SparkModel]): The Spark Model.
-        generator (dg.DataGenerator): The data generator.
-        spec (ColumnGenerationSpec): The column generation specifications.
-        name (str): The column name.
-        field (Field): The Pydantic field.
-    """
-    t, container, nullable = _type_to_spark_type_specs(field.annotation)
-    if spec:
-        if spec.weights:
-            spec.weights = _spec_weights_to_row_count(generator, spec.weights)  # type: ignore
-
-        if spec.value:
-            spec.values = [spec.value]
-
-        if spec.mapping:
-            if spec.mapping_source is None:
-                raise ValueError(
-                    'You have specified a mapping but not mapping_source. '
-                    'You must pass in a valid column name to map values to.'
-                )
-            model._mapped_field.default.append((name, spec.mapping, spec.mapping_source))
-
-        generator.withColumn(
-            name,
-            colType=t,
-            nullable=nullable,
-            structType=container,
-            **spec.model_dump(
-                by_alias=True,
-                exclude_none=True,
-                exclude=model._non_standard_fields.default,
-            ),
-        )
-    else:
-        generator.withColumn(name, colType=t, nullable=nullable, structType=container)
 
 
 def _get_spark_type(t: Type, nullable: bool, safe_casting: bool = False) -> Type[DataType]:
@@ -321,21 +217,6 @@ def _get_enum_mixin_type(t: EnumType) -> MixinType:
         return str
     else:
         raise TypeError(f'Enum {t} is not supported. Only int and str mixins are supported.')
-
-
-def _type_to_spark_type_specs(t: Type) -> Tuple[DataType, Optional[str], bool]:
-    """Converts a given type to its corresponding Spark data type specifications.
-
-    Args:
-        t (Type): The Python type.
-
-    Returns:
-        Tuple[DataType, Optional[str], bool]: The corresponding Spark DataType, container type, and nullability.
-    """
-    spark_type, nullable = _type_to_spark(t, [])
-    if isinstance(spark_type, ArrayType):
-        return spark_type.elementType, ArrayType.typeName(), nullable
-    return spark_type, None, nullable
 
 
 def _type_to_spark(t: Type, metadata, safe_casting: bool = False) -> Tuple[DataType, bool]:
@@ -442,19 +323,6 @@ def _is_nullable(t: Type) -> Tuple[bool, Type]:
             t = type_args[0]
             return True, t
     return False, t
-
-
-def _spec_weights_to_row_count(generator: dg.DataGenerator, weights: List[float]) -> List[int]:
-    """Converts weights to row count.
-
-    Args:
-        generator (dg.DataGenerator): The data generator.
-        weights (List[float]): The list of weights.
-
-    Returns:
-        List[int]: List of row counts.
-    """
-    return [int(generator.rowCount * w) for w in weights]
 
 
 def _get_field_alias(name: str, field_info: FieldInfo, mode: JsonSchemaMode = 'validation') -> str:

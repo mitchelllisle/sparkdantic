@@ -20,7 +20,7 @@ from pyspark.sql.types import (
     TimestampType,
 )
 
-from sparkdantic.model import SparkModel, create_spark_schema
+from sparkdantic.model import SparkModel, _type_to_spark, create_spark_schema
 
 
 class DecimalModel(SparkModel):
@@ -267,3 +267,12 @@ def test_spark_model_schema_json_has_same_field_names_to_model_json_schema(by_al
     json_schema = AliasModel.model_json_schema(by_alias=by_alias, mode=mode)
 
     assert sorted(spark_schema.fieldNames()) == sorted(json_schema['properties'].keys())
+
+
+def test_type_to_spark_with_native_spark_type():
+    # Step 2 & 3: Invoke _type_to_spark with StringType, which is in native_spark_types
+    result_type, nullable = _type_to_spark(StringType, [])
+
+    # Step 4: Assert that the result is an instance of StringType
+    assert isinstance(result_type, StringType), 'Expected StringType instance'
+    assert not nullable, 'Expected non-nullable type for native spark type without Union[None]'
