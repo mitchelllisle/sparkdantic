@@ -1,7 +1,6 @@
 import inspect
 import sys
 import typing
-from collections import deque
 from copy import deepcopy
 from datetime import date, datetime, timedelta
 from decimal import Decimal
@@ -12,7 +11,7 @@ from uuid import UUID
 
 from annotated_types import BaseMetadata
 from pydantic import AliasChoices, AliasPath, BaseModel, ConfigDict, SecretBytes, SecretStr
-from pydantic.fields import FieldInfo, ModelPrivateAttr
+from pydantic.fields import FieldInfo
 from pydantic.json_schema import JsonSchemaMode
 from pyspark.sql import functions as F  # noqa
 from pyspark.sql.types import (
@@ -95,8 +94,6 @@ class SparkModel(BaseModel):
     """
 
     model_config = ConfigDict(arbitrary_types_allowed=True, use_enum_values=True)
-    _mapped_field: ModelPrivateAttr = deque()
-    _non_standard_fields: ModelPrivateAttr = {'value', 'mapping', 'mapping_source'}
 
     @classmethod
     def model_spark_schema(
