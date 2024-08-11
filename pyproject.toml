@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "sparkdantic"
-version = "1.3.0"
+version = "1.2.0"
 description = "A pydantic -> spark schema library"
 authors = ["Mitchell Lisle <m.lisle90@gmail.com>"]
 readme = "README.md"
