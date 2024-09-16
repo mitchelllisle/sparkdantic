@@ -21,7 +21,7 @@ flake8 = ">=6,<8"
 dlint = ">=0.14,<0.16"
 mypy = "^1.1.1"
 pre-commit = "^3.2.1"
-setuptools = ">=68,<75"
+setuptools = ">=68,<76"
 flake8-bugbear = ">=23.3.23,<25.0.0"
 pep8-naming = ">=0.13.3,<0.15.0"
 
