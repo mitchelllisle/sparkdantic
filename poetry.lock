@@ -429,12 +429,12 @@ files = [
 
 [[package]]
 name = "dlint"
-version = "0.15.0"
+version = "0.16.0"
 description = "Dlint is a tool for encouraging best coding practices and helping ensure Python code is secure."
 optional = false
-python-versions = "*"
+python-versions = "<4.0.0,>=3.8.1"
 files = [
-    {file = "dlint-0.15.0-py3-none-any.whl", hash = "sha256:cc5bfa5a887427d808a3f188e5e2934ffb5bb43336f18710215b19d719d31ea7"},
+    {file = "dlint-0.16.0-py3-none-any.whl", hash = "sha256:b4b3b01460d1b310c3f2356be9ce9b7bc2112dfd9be1842eefef36a54eac9443"},
 ]
 
 [package.dependencies]
@@ -467,13 +467,13 @@ test = ["pytest (>=6)"]
 
 [[package]]
 name = "faker"
-version = "30.8.1"
+version = "30.8.2"
 description = "Faker is a Python package that generates fake data for you."
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "Faker-30.8.1-py3-none-any.whl", hash = "sha256:4f7f133560b9d4d2a915581f4ba86f9a6a83421b89e911f36c4c96cff58135a5"},
-    {file = "faker-30.8.1.tar.gz", hash = "sha256:93e8b70813f76d05d98951154681180cb795cfbcff3eced7680d963bcc0da2a9"},
+    {file = "Faker-30.8.2-py3-none-any.whl", hash = "sha256:4a82b2908cd19f3bba1a4da2060cc4eb18a40410ccdf9350d071d79dc92fe3ce"},
+    {file = "faker-30.8.2.tar.gz", hash = "sha256:aa31b52cdae3673d6a78b4857c7bcdc0e98f201a5cb77d7827fa9e6b5876da94"},
 ]
 
 [package.dependencies]
@@ -2053,4 +2053,4 @@ test = ["big-O", "jaraco.functools", "jaraco.itertools", "jaraco.test", "more-it
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.9,<4.0.0"
-content-hash = "14e622a19b3613cd157c8be9e324d8a965b8fbcd7c306dac1f8776c19bcd7e4a"
+content-hash = "0b7b0f2da613daaffdd4b2a6a4c8a4349cf1b85be735d3fe347a8f08c9fb6240"
