@@ -31,7 +31,7 @@ mkdocs = "^1.4.2"
 mkdocs-material = "^9.1.4"
 mkdocs-gen-files = ">=0.4,<0.6"
 mkdocs-literate-nav = "^0.6.0"
-mkdocstrings = {extras = ["python"], version = ">=0.20,<0.27"}
+mkdocstrings = {extras = ["python"], version = ">=0.20,<0.28"}
 mkautodoc = "^0.2.0"
 pymdown-extensions = "^10.0.1"
 
