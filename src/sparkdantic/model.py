@@ -75,11 +75,10 @@ def SparkField(*args, spark_type: Optional[Type[DataType]] = None, **kwargs) -> 
 
 
 class SparkModel(BaseModel):
-    """Spark Model representing a Pydantic BaseModel with additional methods to convert it to a PySpark schema.
+    """A Pydantic BaseModel subclass with model to PySpark schema conversion.
 
     Methods:
         model_spark_schema: Generates a PySpark schema from the model fields.
-        generate_data: Generates PySpark DataFrame based on the schema and the column specs.
     """
 
     model_config = ConfigDict(arbitrary_types_allowed=True, use_enum_values=True)
