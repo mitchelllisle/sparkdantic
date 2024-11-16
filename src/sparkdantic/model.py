@@ -13,24 +13,7 @@ from annotated_types import BaseMetadata
 from pydantic import AliasChoices, AliasPath, BaseModel, ConfigDict, Field, SecretBytes, SecretStr
 from pydantic.fields import FieldInfo
 from pydantic.json_schema import JsonSchemaMode
-from pyspark.sql import functions as F  # noqa
-from pyspark.sql.types import (
-    ArrayType,
-    BinaryType,
-    BooleanType,
-    DataType,
-    DateType,
-    DayTimeIntervalType,
-    DecimalType,
-    DoubleType,
-    IntegerType,
-    LongType,
-    MapType,
-    StringType,
-    StructField,
-    StructType,
-    TimestampType,
-)
+from pyspark.sql import types as spark_types
 
 if sys.version_info > (3, 10):
     from types import UnionType  # pragma: no cover
@@ -44,39 +27,39 @@ else:
 
 
 native_spark_types = [
-    ArrayType,
-    BinaryType,
-    BooleanType,
-    DataType,
-    DateType,
-    DayTimeIntervalType,
-    DecimalType,
-    DoubleType,
-    IntegerType,
-    LongType,
-    MapType,
-    StringType,
-    StructField,
-    StructType,
-    TimestampType,
+    spark_types.ArrayType,
+    spark_types.BinaryType,
+    spark_types.BooleanType,
+    spark_types.DataType,
+    spark_types.DateType,
+    spark_types.DayTimeIntervalType,
+    spark_types.DecimalType,
+    spark_types.DoubleType,
+    spark_types.IntegerType,
+    spark_types.LongType,
+    spark_types.MapType,
+    spark_types.StringType,
+    spark_types.StructField,
+    spark_types.StructType,
+    spark_types.TimestampType,
 ]
 
 type_map = MappingProxyType(
     {
-        int: IntegerType,
-        float: DoubleType,
-        str: StringType,
-        SecretStr: StringType,
-        bool: BooleanType,
-        bytes: BinaryType,
-        SecretBytes: BinaryType,
-        list: ArrayType,
-        dict: MapType,
-        datetime: TimestampType,
-        date: DateType,
-        Decimal: DecimalType,
-        timedelta: DayTimeIntervalType,
-        UUID: StringType,
+        int: spark_types.IntegerType,
+        float: spark_types.DoubleType,
+        str: spark_types.StringType,
+        SecretStr: spark_types.StringType,
+        bool: spark_types.BooleanType,
+        bytes: spark_types.BinaryType,
+        SecretBytes: spark_types.BinaryType,
+        list: spark_types.ArrayType,
+        dict: spark_types.MapType,
+        datetime: spark_types.TimestampType,
+        date: spark_types.DateType,
+        Decimal: spark_types.DecimalType,
+        timedelta: spark_types.DayTimeIntervalType,
+        UUID: spark_types.StringType,
     }
 )
 
@@ -104,7 +87,7 @@ class SparkModel(BaseModel):
     @classmethod
     def model_spark_schema(
         cls, safe_casting: bool = False, by_alias: bool = True, mode: JsonSchemaMode = 'validation'
-    ) -> StructType:
+    ) -> spark_types.StructType:
         """Generates a PySpark schema from the model fields. This operates similarly to
         `pydantic.BaseModel.model_json_schema()`.
 
@@ -124,7 +107,7 @@ def create_spark_schema(
     safe_casting: bool = False,
     by_alias: bool = True,
     mode: JsonSchemaMode = 'validation',
-) -> StructType:
+) -> spark_types.StructType:
     """Generates a PySpark schema from the model fields. This operates similarly to
     `pydantic.BaseModel.model_json_schema()`.
 
@@ -149,7 +132,9 @@ def create_spark_schema(
 
         if _is_supported_subclass(t):
             fields.append(
-                StructField(name, create_spark_schema(t, safe_casting, by_alias, mode), nullable)
+                spark_types.StructField(
+                    name, create_spark_schema(t, safe_casting, by_alias, mode), nullable
+                )
             )  # type: ignore
         else:
             field_info_extra = info.json_schema_extra or {}
@@ -159,12 +144,14 @@ def create_spark_schema(
                 t = _get_native_spark_type(override or t, info.metadata)
             else:
                 t, nullable = _type_to_spark(info.annotation, info.metadata, safe_casting)
-            _struct_field = StructField(name, t, nullable)
+            _struct_field = spark_types.StructField(name, t, nullable)
             fields.append(_struct_field)
-    return StructType(fields)
+    return spark_types.StructType(fields)
 
 
-def _get_native_spark_type(t: Type[DataType], meta: BaseMetadata) -> DataType:
+def _get_native_spark_type(
+    t: Type[spark_types.DataType], meta: BaseMetadata
+) -> spark_types.DataType:
     """Returns the instantiated type for a given PySpark type.
 
     Args:
@@ -173,13 +160,15 @@ def _get_native_spark_type(t: Type[DataType], meta: BaseMetadata) -> DataType:
     """
     if t not in native_spark_types:
         raise TypeError(f'Defining `spark_type` must be a valid `pyspark.sql.types` type. Got {t}')
-    if isinstance(t, DecimalType):
+    if isinstance(t, spark_types.DecimalType):
         return _set_decimal_precision_and_scale(t, meta)
 
     return t()
 
 
-def _get_spark_type(t: Type, nullable: bool, safe_casting: bool = False) -> Type[DataType]:
+def _get_spark_type(
+    t: Type, nullable: bool, safe_casting: bool = False
+) -> Type[spark_types.DataType]:
     """Returns the corresponding PySpark data type for a given Python type, considering nullability.
 
     Args:
@@ -197,7 +186,7 @@ def _get_spark_type(t: Type, nullable: bool, safe_casting: bool = False) -> Type
     if spark_type is None:
         raise TypeError(f'Type {t} not recognized')
     if safe_casting is True and spark_type.typeName() == 'integer':
-        spark_type = LongType
+        spark_type = spark_types.LongType
     spark_type.nullable = nullable
     return spark_type
 
@@ -222,7 +211,9 @@ def _get_enum_mixin_type(t: EnumType) -> MixinType:
         raise TypeError(f'Enum {t} is not supported. Only int and str mixins are supported.')
 
 
-def _type_to_spark(t: Type, metadata, safe_casting: bool = False) -> Tuple[DataType, bool]:
+def _type_to_spark(
+    t: Type, metadata, safe_casting: bool = False
+) -> Tuple[spark_types.DataType, bool]:
     """Converts a given Python type to a corresponding PySpark data type.
 
     Args:
@@ -245,11 +236,11 @@ def _type_to_spark(t: Type, metadata, safe_casting: bool = False) -> Tuple[DataT
         else:
             # Check if it's an accepted Enum or optional SparkModel subclass
             array_type, inner_nullable = _type_to_spark(inner_type, [])
-        return ArrayType(array_type, inner_nullable), nullable
+        return spark_types.ArrayType(array_type, inner_nullable), nullable
     elif origin is dict:
         key_type, _ = _type_to_spark(args[0], [])
         value_type, inner_nullable = _type_to_spark(args[1], [])
-        return MapType(key_type, value_type, inner_nullable), nullable
+        return spark_types.MapType(key_type, value_type, inner_nullable), nullable
     elif origin is typing.Literal:
         # PySpark doesn't have an equivalent type for Literal. To allow Literal usage with a model we check all the
         # types of values within Literal. If they are all the same, use that type as our new type.
@@ -274,13 +265,15 @@ def _type_to_spark(t: Type, metadata, safe_casting: bool = False) -> Tuple[DataT
     else:
         t = _get_spark_type(t, nullable, safe_casting)()
 
-    if isinstance(t, DecimalType):
+    if isinstance(t, spark_types.DecimalType):
         t = _set_decimal_precision_and_scale(t, meta)
 
     return t, nullable
 
 
-def _set_decimal_precision_and_scale(t: DecimalType, meta: BaseMetadata) -> DecimalType:
+def _set_decimal_precision_and_scale(
+    t: spark_types.DecimalType, meta: BaseMetadata
+) -> spark_types.DecimalType:
     """Sets the precision and scale of a DecimalType if available in the metadata. Defaults to 10 and 0.
 
     Args:
@@ -291,7 +284,7 @@ def _set_decimal_precision_and_scale(t: DecimalType, meta: BaseMetadata) -> Deci
         return t
     max_digits = getattr(meta, 'max_digits', 10)
     decimal_places = getattr(meta, 'decimal_places', 0)
-    return DecimalType(precision=max_digits, scale=decimal_places)
+    return spark_types.DecimalType(precision=max_digits, scale=decimal_places)
 
 
 def _is_supported_subclass(subclass: Type) -> bool:
