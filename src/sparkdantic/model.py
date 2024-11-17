@@ -25,26 +25,11 @@ if sys.version_info > (3, 11):
 else:
     EnumType = Type[Enum]  # pragma: no cover
 
+MixinType = Union[Type[int], Type[str]]
 
-native_spark_types = [
-    spark_types.ArrayType,
-    spark_types.BinaryType,
-    spark_types.BooleanType,
-    spark_types.DataType,
-    spark_types.DateType,
-    spark_types.DayTimeIntervalType,
-    spark_types.DecimalType,
-    spark_types.DoubleType,
-    spark_types.IntegerType,
-    spark_types.LongType,
-    spark_types.MapType,
-    spark_types.StringType,
-    spark_types.StructField,
-    spark_types.StructType,
-    spark_types.TimestampType,
-]
+BaseModelOrSparkModel = Union[BaseModel, 'SparkModel']
 
-type_map = MappingProxyType(
+_type_mapping = MappingProxyType(
     {
         int: spark_types.IntegerType,
         float: spark_types.DoubleType,
@@ -62,10 +47,6 @@ type_map = MappingProxyType(
         UUID: spark_types.StringType,
     }
 )
-
-MixinType = Union[Type[int], Type[str]]
-
-BaseModelOrSparkModel = Union[BaseModel, 'SparkModel']
 
 
 def SparkField(*args, spark_type: Optional[Type[DataType]] = None, **kwargs) -> Field:
@@ -127,24 +108,21 @@ def create_spark_schema(
         if by_alias:
             name = _get_field_alias(name, info, mode)
 
-        nullable, t = _is_nullable(info.annotation)
+        nullable, field_type = _get_nullability_and_inner_type(info.annotation)
 
-        if _is_supported_subclass(t):
-            fields.append(
-                spark_types.StructField(
-                    name, create_spark_schema(t, safe_casting, by_alias, mode), nullable
-                )
-            )  # type: ignore
+        if _is_supported_subclass(field_type):
+            spark_type = create_spark_schema(field_type, safe_casting, by_alias, mode)
         else:
             field_info_extra = info.json_schema_extra or {}
             override = field_info_extra.get('spark_type')
 
-            if override or t in native_spark_types:
-                t = _get_native_spark_type(override or t, info.metadata)
+            if override:
+                spark_type = _get_native_spark_type(override, info.metadata)
             else:
-                t, nullable = _type_to_spark(info.annotation, info.metadata, safe_casting)
-            _struct_field = spark_types.StructField(name, t, nullable)
-            fields.append(_struct_field)
+                spark_type, nullable = _type_to_spark(info.annotation, info.metadata, safe_casting)
+
+        struct_field = spark_types.StructField(name, spark_type, nullable)
+        fields.append(struct_field)
     return spark_types.StructType(fields)
 
 
@@ -157,7 +135,7 @@ def _get_native_spark_type(
         t (Type[DataType]): The PySpark data type.
         meta (BaseMetadata): The metadata.
     """
-    if t not in native_spark_types:
+    if not issubclass(t, spark_types.DataType):
         raise TypeError(f'Defining `spark_type` must be a valid `pyspark.sql.types` type. Got {t}')
     if isinstance(t, spark_types.DecimalType):
         return _set_decimal_precision_and_scale(t, meta)
@@ -181,7 +159,7 @@ def _get_spark_type(
     Raises:
         TypeError: If the type is not recognized in the type map.
     """
-    spark_type = type_map.get(t)
+    spark_type = _type_mapping.get(t)
     if spark_type is None:
         raise TypeError(f'Type {t} not recognized')
     if safe_casting is True and spark_type.typeName() == 'integer':
@@ -221,7 +199,7 @@ def _type_to_spark(
     Returns:
         DataType: The corresponding PySpark data type.
     """
-    nullable, t = _is_nullable(t)
+    nullable, t = _get_nullability_and_inner_type(t)
     meta = None if len(metadata) < 1 else deepcopy(metadata).pop()
     args = get_args(t)
     origin = get_origin(t)
@@ -259,7 +237,7 @@ def _type_to_spark(
     if issubclass(t, Enum):
         t = _get_enum_mixin_type(t)
 
-    if t in native_spark_types:
+    if issubclass(t, spark_types.DataType):
         t = _get_native_spark_type(t, meta)
     else:
         t = _get_spark_type(t, nullable, safe_casting)()
@@ -303,7 +281,7 @@ def _is_supported_subclass(subclass: Type) -> bool:
         return False
 
 
-def _is_nullable(t: Type) -> Tuple[bool, Type]:
+def _get_nullability_and_inner_type(t: Type) -> Tuple[bool, Type]:
     """Determines if a type is nullable and returns the type without the Union.
 
     Args:
@@ -314,7 +292,7 @@ def _is_nullable(t: Type) -> Tuple[bool, Type]:
     """
     if get_origin(t) in (Union, UnionType):
         type_args = get_args(t)
-        if any([get_origin(arg) is None for arg in type_args]):
+        if any(get_origin(arg) is None for arg in type_args):
             t = type_args[0]
             return True, t
     return False, t
