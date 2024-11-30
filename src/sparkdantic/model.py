@@ -6,11 +6,11 @@ from datetime import date, datetime, timedelta
 from decimal import Decimal
 from enum import Enum
 from types import MappingProxyType
-from typing import Annotated, Tuple, Type, Union, get_args, get_origin
+from typing import Annotated, Optional, Tuple, Type, Union, get_args, get_origin
 from uuid import UUID
 
 from annotated_types import BaseMetadata
-from pydantic import AliasChoices, AliasPath, BaseModel, ConfigDict, SecretBytes, SecretStr
+from pydantic import AliasChoices, AliasPath, BaseModel, ConfigDict, Field, SecretBytes, SecretStr
 from pydantic.fields import FieldInfo
 from pydantic.json_schema import JsonSchemaMode
 from pyspark.sql import functions as F  # noqa
@@ -83,6 +83,12 @@ type_map = MappingProxyType(
 MixinType = Union[Type[int], Type[str]]
 
 BaseModelOrSparkModel = Union[BaseModel, 'SparkModel']
+
+
+def SparkField(*args, spark_type: Optional[Type[DataType]] = None, **kwargs) -> Field:
+    if spark_type is not None:
+        kwargs['spark_type'] = spark_type
+    return Field(*args, **kwargs)
 
 
 class SparkModel(BaseModel):
