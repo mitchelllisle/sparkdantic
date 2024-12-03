@@ -16,7 +16,7 @@ pyparsing = "^3.1.1"
 
 [tool.poetry.group.dev.dependencies]
 bumpversion = "^0.6.0"
-twine = ">=4.0.2,<6.0.0"
+twine = ">=4.0.2,<7.0.0"
 flake8 = ">=6,<8"
 dlint = ">=0.14,<0.17"
 mypy = "^1.1.1"
