@@ -46,7 +46,7 @@ class ListValuesModel(SparkModel):
     ee: List[datetime]
     ii: List[timedelta]
     oo: List[MyModel]
-    o1: Optional[List[MyModel]]
+    o1: Optional[List[Optional[MyModel]]]
     ob1: Optional[List[MyBaseModel]]
     o2: Optional[List[IntTestEnum]]
     o3: list[str]
@@ -74,7 +74,7 @@ def test_list_values():
                 'o1', ArrayType(StructType([StructField('k', StringType(), False)]), True), True
             ),
             StructField(
-                'ob1', ArrayType(StructType([StructField('k', StringType(), False)]), True), True
+                'ob1', ArrayType(StructType([StructField('k', StringType(), False)]), False), True
             ),
             StructField('o2', ArrayType(IntegerType(), False), True),
             StructField('o3', ArrayType(StringType(), False), False),
