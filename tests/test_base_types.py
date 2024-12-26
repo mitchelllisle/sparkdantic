@@ -20,7 +20,7 @@ from pyspark.sql.types import (
     TimestampType,
 )
 
-from sparkdantic.model import SparkModel, _from_python_type, create_spark_schema
+from sparkdantic.model import SparkModel, create_spark_schema
 
 
 class DecimalModel(SparkModel):
@@ -134,10 +134,8 @@ def test_decimal_types():
             StructField('c', DecimalType(5, 2), False),
         ]
     )
-    generated_schema1 = DecimalModel.model_spark_schema()
-    generated_schema2 = DecimalModel.model_spark_schema()
-    assert generated_schema1 == expected_schema
-    assert generated_schema2 == expected_schema
+    generated_schema = DecimalModel.model_spark_schema()
+    assert generated_schema == expected_schema
 
 
 def test_safe_casting():
@@ -182,7 +180,7 @@ def test_create_spark_schema_raises_error_for_invalid_type():
     with pytest.raises(TypeError) as exc_info:
         create_spark_schema(NotAModel)
 
-    assert f'`model` must be of type `SparkModel` or `pydantic.BaseModel`' in str(exc_info.value)
+    assert '`model` must be of type `SparkModel` or `pydantic.BaseModel`' in str(exc_info.value)
 
 
 def test_spark_schema_contains_validation_field_aliases_by_default():
