@@ -193,13 +193,8 @@ def _from_python_type(
 
     # Convert complex types
     if origin is list:
-        element_py_type = args[0]
-        contains_null = _is_optional(element_py_type)
-        if _is_base_model(element_py_type):
-            element_type = create_spark_schema(element_py_type, safe_casting)
-        else:
-            # Check if it's an accepted Enum or optional SparkModel subclass
-            element_type = _from_python_type(element_py_type, [])
+        element_type = _from_python_type(args[0], [])
+        contains_null = _is_optional(args[0])
         return spark_types.ArrayType(element_type, contains_null)
 
     elif origin is dict:
