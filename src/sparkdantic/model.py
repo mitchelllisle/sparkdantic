@@ -192,15 +192,21 @@ def _from_python_type(
         return create_spark_schema(py_type, safe_casting)
 
     args = get_args(py_type)
-    origin = get_origin(py_type)
+    origin = get_origin(py_type) or py_type
 
     # Convert complex types
     if origin is list:
+        if len(args) == 0:
+            raise TypeError('list type must have a type argument')
+
         element_type = _from_python_type(args[0], [])
         contains_null = _is_optional(args[0])
         return spark_types.ArrayType(element_type, contains_null)
 
     elif origin is dict:
+        if len(args) != 2:
+            raise TypeError('dict type must have key and value type arguments')
+
         key_type = _from_python_type(args[0], [])
         value_type = _from_python_type(args[1], [])
         value_contains_null = _is_optional(args[1])

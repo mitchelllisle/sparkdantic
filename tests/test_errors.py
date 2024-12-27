@@ -2,43 +2,63 @@ from enum import Enum
 
 import pytest
 
-from sparkdantic.model import SparkModel
+from sparkdantic import SparkModel
 
 
-class BadListType(SparkModel):
-    values: list
+def test_incomplete_type_annotations_raise_error():
+    class BadListType(SparkModel):
+        values: list
 
-
-class NewType:
-    pass
-
-
-class BadType(SparkModel):
-    t: NewType
-
-
-class BadEnum(Enum):
-    this = 'bad'
-
-
-class BadEnumType(SparkModel):
-    e: BadEnum
-
-
-def test_value_error():
-    with pytest.raises(TypeError):
-        BadListType(values=[1, 2]).model_spark_schema()
-
-
-def test_bad_type():
-    with pytest.raises(TypeError):
-        BadType(t=NewType()).model_spark_schema()
-
-
-def test_bad_enum_type():
     with pytest.raises(TypeError) as exc_info:
-        BadEnumType(e=BadEnum.this.value).model_spark_schema()
+        BadListType.model_spark_schema()
 
-    assert f'Enum {BadEnum} is not supported. Only int and str mixins are supported.' in str(
+    assert 'list type must have a type argument' in str(exc_info.value)
+
+    class BadDictType(SparkModel):
+        mapping: dict
+
+    with pytest.raises(TypeError) as exc_info:
+        BadDictType.model_spark_schema()
+
+    assert 'dict type must have key and value type arguments' in str(exc_info.value)
+
+
+def test_user_defined_field_type_raises_error():
+    class UserDefinedType:
+        ...
+
+    class UserDefinedModel(SparkModel):
+        t: UserDefinedType
+
+    with pytest.raises(TypeError) as exc_info:
+        UserDefinedModel.model_spark_schema()
+
+    assert f'Type {UserDefinedType} not recognized' in str(exc_info.value)
+
+
+def test_unsupported_enum_type_raises_error():
+    class ClassicEnum(Enum):
+        this = 'bad'
+
+    class ClassicEnumModel(SparkModel):
+        e: ClassicEnum
+
+    with pytest.raises(TypeError) as exc_info:
+        ClassicEnumModel.model_spark_schema()
+
+    assert f'Enum {ClassicEnum} is not supported. Only int and str mixins are supported.' in str(
+        exc_info.value
+    )
+
+    class FloatEnum(float, Enum):
+        this = 3.14
+
+    class FloatEnumModel(SparkModel):
+        e: FloatEnum
+
+    with pytest.raises(TypeError) as exc_info:
+        FloatEnumModel.model_spark_schema()
+
+    assert f'Enum {FloatEnum} is not supported. Only int and str mixins are supported.' in str(
         exc_info.value
     )
