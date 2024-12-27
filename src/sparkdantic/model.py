@@ -104,6 +104,9 @@ def create_spark_schema(
     if not _is_base_model(model):
         raise TypeError('`model` must be of type `SparkModel` or `pydantic.BaseModel`')
 
+    if mode not in get_args(JsonSchemaMode):
+        raise ValueError(f'`mode` must be one of {get_args(JsonSchemaMode)}')
+
     fields = []
     for name, info in model.model_fields.items():
         if by_alias:
