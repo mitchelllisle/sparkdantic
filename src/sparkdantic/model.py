@@ -119,7 +119,7 @@ def create_spark_schema(
         if _is_base_model(field_type):
             spark_type = create_spark_schema(field_type, safe_casting, by_alias, mode)
         elif override is not None:
-            if not issubclass(override, spark_types.DataType):
+            if not inspect.isclass(override) or not issubclass(override, spark_types.DataType):
                 raise TypeError('`spark_type` override should be a `pyspark.sql.types.DataType`')
             spark_type = override()
         elif inspect.isclass(field_type) and issubclass(field_type, spark_types.DataType):

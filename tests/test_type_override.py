@@ -29,5 +29,7 @@ def test_bad_override():
     class BadOverride(SparkModel):
         id: UUID4 = Field(spark_type='a')
 
-    with pytest.raises(TypeError):
+    with pytest.raises(TypeError) as exc_info:
         BadOverride.model_spark_schema()
+
+    assert '`spark_type` override should be a `pyspark.sql.types.DataType`' in str(exc_info.value)
