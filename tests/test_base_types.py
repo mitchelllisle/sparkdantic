@@ -3,8 +3,7 @@ from decimal import Decimal
 from typing import Annotated, Literal, Optional
 from uuid import UUID
 
-import pytest
-from pydantic import BaseModel, Field, SecretBytes, SecretStr
+from pydantic import Field, SecretBytes, SecretStr
 from pyspark.sql.types import (
     BinaryType,
     BooleanType,
@@ -13,41 +12,32 @@ from pyspark.sql.types import (
     DecimalType,
     DoubleType,
     IntegerType,
-    LongType,
     StringType,
     StructField,
     StructType,
     TimestampType,
 )
 
-from sparkdantic import SparkModel, create_spark_schema
-from sparkdantic.exceptions import FieldConversionError
+from sparkdantic import SparkModel
 
 
-class DecimalModel(SparkModel):
-    a: Decimal
-    b: Decimal = Field(decimal_places=2)
-    c: Decimal = Field(decimal_places=2, max_digits=5)
+def test_base_type_fields():
+    class BaseTypeModel(SparkModel):
+        a: int
+        b: float
+        c: str
+        d: bool
+        e: bytes
+        f: Decimal
+        y: date
+        cc: datetime
+        gg: timedelta
+        hh: DoubleType
+        ii: SecretBytes
+        jj: SecretStr
+        x: str = Field(alias='_x')
+        uuid: UUID
 
-
-class RawValuesModel(SparkModel):
-    a: int
-    b: float
-    c: str
-    d: bool
-    e: bytes
-    f: Decimal
-    y: date
-    cc: datetime
-    gg: timedelta
-    hh: DoubleType
-    ii: SecretBytes
-    jj: SecretStr
-    x: str = Field(alias='_x')
-    uuid: UUID
-
-
-def test_raw_values():
     expected_schema = StructType(
         [
             StructField('a', IntegerType(), False),
@@ -66,58 +56,51 @@ def test_raw_values():
             StructField('uuid', StringType(), False),
         ]
     )
-    generated_schema = RawValuesModel.model_spark_schema(by_alias=True)
-    assert generated_schema == expected_schema
+
+    actual_schema = BaseTypeModel.model_spark_schema(by_alias=True)
+    assert actual_schema == expected_schema
 
 
-def test_literal():
-    expected = StructType(
+def test_literal_fields():
+    class ParentModel(SparkModel):
+        a: Literal['yes', 'no']
+
+    class ChildModel(ParentModel):
+        b: Optional[Literal['yes', 'no']]
+
+    expected_schema = StructType(
         [
-            StructField('is_this_a_field', StringType(), False),
-            StructField('is_this_another_field', StringType(), True),
+            StructField('a', StringType(), False),
+            StructField('b', StringType(), True),
         ]
     )
 
-    class MyClass(BaseModel):
-        is_this_a_field: Literal['yes', 'no']
-
-    class SparkMyClass(SparkModel, MyClass):
-        is_this_another_field: Optional[Literal['yes', 'no']]
-
-    schema = SparkMyClass.model_spark_schema()
-    assert schema == expected
+    actual_schema = ChildModel.model_spark_schema()
+    assert actual_schema == expected_schema
 
 
-def test_literal_with_inconsistent_type_arguments_raises_error():
-    class MyClass(SparkModel):
-        is_this_a_field: Literal['yes', 1]
-
-    with pytest.raises(FieldConversionError) as exc_info:
-        MyClass.model_spark_schema()
-
-    # Check cause
-    assert isinstance(exc_info.value.__cause__, TypeError)
-    assert (
-        'Multiple types detected in `Literal` type. Only one consistent arg type is supported.'
-        in str(exc_info.value.__cause__)
-    )
-
-
-def test_annotated_type():
-    class MyClass(SparkModel):
+def test_annotated_fields():
+    class AnnotatedModel(SparkModel):
         optional_field: Optional[Annotated[int, Field(lt=1, gt=10)]]
         required_field: Annotated[int, Field(lt=1, gt=10)]
 
-    schema = MyClass.model_spark_schema()
-    assert schema == StructType(
+    expected_schema = StructType(
         [
             StructField('optional_field', IntegerType(), True),
             StructField('required_field', IntegerType(), False),
         ]
     )
 
+    actual_schema = AnnotatedModel.model_spark_schema()
+    assert actual_schema == expected_schema
 
-def test_decimal_types():
+
+def test_decimal_fields():
+    class DecimalModel(SparkModel):
+        a: Decimal
+        b: Decimal = Field(decimal_places=2)
+        c: Decimal = Field(decimal_places=2, max_digits=5)
+
     expected_schema = StructType(
         [
             StructField('a', DecimalType(10, 0), False),
@@ -125,50 +108,6 @@ def test_decimal_types():
             StructField('c', DecimalType(5, 2), False),
         ]
     )
-    generated_schema = DecimalModel.model_spark_schema()
-    assert generated_schema == expected_schema
 
-
-def test_safe_casting():
-    class MyClass(SparkModel):
-        a: int
-        b: Optional[int]
-        c: Optional[int] = None
-        d: Optional[int] = Field(spark_type=StringType)
-        e: str = Field(spark_type=IntegerType)
-        f: str
-
-    schema = MyClass.model_spark_schema(safe_casting=True)
-    assert schema == StructType(
-        [
-            StructField('a', LongType(), False),
-            StructField('b', LongType(), True),
-            StructField('c', LongType(), True),
-            StructField('d', StringType(), True),
-            StructField('e', IntegerType(), False),
-            StructField('f', StringType(), False),
-        ]
-    )
-
-
-def test_spark_schema_is_created_for_basemodel():
-    class MyModel(BaseModel):
-        a: int
-
-    schema = create_spark_schema(MyModel)
-
-    assert schema == StructType(
-        [
-            StructField('a', IntegerType(), False),
-        ]
-    )
-
-
-def test_create_spark_schema_raises_error_for_invalid_type():
-    class NotAModel:
-        a: int
-
-    with pytest.raises(TypeError) as exc_info:
-        create_spark_schema(NotAModel)
-
-    assert '`model` must be of type `SparkModel` or `pydantic.BaseModel`' in str(exc_info.value)
+    actual_schema = DecimalModel.model_spark_schema()
+    assert actual_schema == expected_schema

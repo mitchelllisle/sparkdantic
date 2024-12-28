@@ -19,43 +19,39 @@ from pyspark.sql.types import (
     TimestampType,
 )
 
-from sparkdantic.model import SparkModel
+from sparkdantic import SparkModel
 
 
-class IntTestEnum(IntEnum):
-    X = 1
-    Y = 2
+def test_list_fields():
+    class IntegerEnum(IntEnum):
+        X = 1
+        Y = 2
 
+    class InnerSparkModel(SparkModel):
+        k: str
 
-class MyModel(SparkModel):
-    k: str
+    class InnerBaseModel(BaseModel):
+        k: str
 
+    class ListValuesModel(SparkModel):
+        m: List[int]
+        n: List[float]
+        o: List[str]
+        p: List[bool]
+        q: List[bytes]
+        r: List[Decimal]
+        aa: List[date]
+        ee: List[datetime]
+        ii: List[timedelta]
+        oo: List[InnerSparkModel]
+        o1: Optional[List[Optional[InnerSparkModel]]]
+        ob1: Optional[List[InnerBaseModel]]
+        o2: Optional[List[IntegerEnum]]
+        o3: list[str]
+        o4: List[Optional[InnerSparkModel]]
+        ob4: List[Optional[InnerBaseModel]]
+        j: list[Union[str, None]]
 
-class MyBaseModel(BaseModel):
-    k: str
-
-
-class ListValuesModel(SparkModel):
-    m: List[int]
-    n: List[float]
-    o: List[str]
-    p: List[bool]
-    q: List[bytes]
-    r: List[Decimal]
-    aa: List[date]
-    ee: List[datetime]
-    ii: List[timedelta]
-    oo: List[MyModel]
-    o1: Optional[List[Optional[MyModel]]]
-    ob1: Optional[List[MyBaseModel]]
-    o2: Optional[List[IntTestEnum]]
-    o3: list[str]
-    o4: List[Optional[MyModel]]
-    ob4: List[Optional[MyBaseModel]]
-    j: list[Union[str, None]]
-
-
-def test_list_values():
     expected_schema = StructType(
         [
             StructField('m', ArrayType(IntegerType(), False), False),
@@ -87,5 +83,5 @@ def test_list_values():
             StructField('j', ArrayType(StringType(), True), False),
         ]
     )
-    generated_schema = ListValuesModel.model_spark_schema()
-    assert generated_schema == expected_schema
+    actual_schema = ListValuesModel.model_spark_schema()
+    assert actual_schema == expected_schema

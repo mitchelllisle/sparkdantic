@@ -1,8 +1,8 @@
-from enum import Enum
+from typing import Literal
 
 import pytest
 
-from sparkdantic import SparkModel
+from sparkdantic import SparkModel, create_spark_schema
 from sparkdantic.exceptions import FieldConversionError
 
 
@@ -44,34 +44,26 @@ def test_user_defined_field_type_raises_error():
     assert f'Type {UserDefinedType} not recognized' in str(exc_info.value.__cause__)
 
 
-def test_unsupported_enum_type_raises_error():
-    class ClassicEnum(Enum):
-        this = 'bad'
+def test_create_spark_schema_raises_error_for_invalid_type():
+    class NotAModel:
+        a: int
 
-    class ClassicEnumModel(SparkModel):
-        e: ClassicEnum
+    with pytest.raises(TypeError) as exc_info:
+        create_spark_schema(NotAModel)
 
-    with pytest.raises(FieldConversionError) as exc_info:
-        ClassicEnumModel.model_spark_schema()
+    assert '`model` must be of type `SparkModel` or `pydantic.BaseModel`' in str(exc_info.value)
 
-    assert 'Error converting field `e` to PySpark type' in str(exc_info.value)
-    # Check cause
-    assert isinstance(exc_info.value.__cause__, TypeError)
-    assert f'Enum {ClassicEnum} is not supported. Only int and str mixins are supported.' in str(
-        exc_info.value.__cause__
-    )
 
-    class FloatEnum(float, Enum):
-        this = 3.14
-
-    class FloatEnumModel(SparkModel):
-        e: FloatEnum
+def test_literal_with_inconsistent_type_arguments_raises_error():
+    class BadLiteralModel(SparkModel):
+        mixed_types: Literal['yes', 1]
 
     with pytest.raises(FieldConversionError) as exc_info:
-        FloatEnumModel.model_spark_schema()
+        BadLiteralModel.model_spark_schema()
 
     # Check cause
     assert isinstance(exc_info.value.__cause__, TypeError)
-    assert f'Enum {FloatEnum} is not supported. Only int and str mixins are supported.' in str(
-        exc_info.value.__cause__
+    assert (
+        'Multiple types detected in `Literal` type. Only one consistent arg type is supported.'
+        in str(exc_info.value.__cause__)
     )

@@ -8,13 +8,12 @@ from sparkdantic import SparkModel
 from sparkdantic.exceptions import FieldConversionError
 
 
-class MyModel(SparkModel):
-    id: UUID4 = Field(spark_type=StringType)
-    t: str = Field(spark_type=IntegerType)
-    o: Union[int, None] = Field(spark_type=LongType)
-
-
 def test_override():
+    class MyModel(SparkModel):
+        id: int = Field(spark_type=StringType)
+        t: str = Field(spark_type=IntegerType)
+        o: Union[int, None] = Field(spark_type=LongType)
+
     schema = MyModel.model_spark_schema()
     expected = StructType(
         [
@@ -26,7 +25,7 @@ def test_override():
     assert schema == expected
 
 
-def test_bad_override():
+def test_bad_override_raises_error():
     class BadOverride(SparkModel):
         id: UUID4 = Field(spark_type='a')
 

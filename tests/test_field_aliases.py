@@ -23,8 +23,7 @@ class AliasModel(SparkModel):
 
 
 def test_spark_schema_contains_validation_field_aliases_by_default():
-    schema = AliasModel.model_spark_schema()
-    assert schema == StructType(
+    expected_schema = StructType(
         [
             StructField('_a', IntegerType(), False),
             StructField('b', IntegerType(), False),
@@ -37,11 +36,12 @@ def test_spark_schema_contains_validation_field_aliases_by_default():
             StructField('j', IntegerType(), False),
         ]
     )
+    actual_schema = AliasModel.model_spark_schema()
+    assert actual_schema == expected_schema
 
 
 def test_spark_schema_contains_field_names_when_not_using_aliases():
-    schema = AliasModel.model_spark_schema(by_alias=False)
-    assert schema == StructType(
+    expected_schema = StructType(
         [
             StructField('a', IntegerType(), False),
             StructField('b', IntegerType(), False),
@@ -54,11 +54,12 @@ def test_spark_schema_contains_field_names_when_not_using_aliases():
             StructField('j', IntegerType(), False),
         ]
     )
+    actual_schema = AliasModel.model_spark_schema(by_alias=False)
+    assert actual_schema == expected_schema
 
 
 def test_spark_schema_contains_serialization_aliases_when_using_serialization_mode():
-    schema = AliasModel.model_spark_schema(mode='serialization')
-    assert schema == StructType(
+    expected_schema = StructType(
         [
             StructField('_a', IntegerType(), False),
             StructField('_b', IntegerType(), False),
@@ -71,11 +72,12 @@ def test_spark_schema_contains_serialization_aliases_when_using_serialization_mo
             StructField('j', IntegerType(), False),
         ]
     )
+    actual_schema = AliasModel.model_spark_schema(mode='serialization')
+    assert actual_schema == expected_schema
 
 
 def test_spark_schema_contains_field_names_when_using_serialization_mode_and_not_using_aliases():
-    schema = AliasModel.model_spark_schema(by_alias=False, mode='serialization')
-    assert schema == StructType(
+    expected_schema = StructType(
         [
             StructField('a', IntegerType(), False),
             StructField('b', IntegerType(), False),
@@ -88,6 +90,8 @@ def test_spark_schema_contains_field_names_when_using_serialization_mode_and_not
             StructField('j', IntegerType(), False),
         ]
     )
+    actual_schema = AliasModel.model_spark_schema(by_alias=False, mode='serialization')
+    assert actual_schema == expected_schema
 
 
 @pytest.mark.parametrize(
