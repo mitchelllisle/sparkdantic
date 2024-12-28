@@ -21,6 +21,7 @@ from pyspark.sql.types import (
 )
 
 from sparkdantic import SparkModel, create_spark_schema
+from sparkdantic.exceptions import FieldConversionError
 
 
 class DecimalModel(SparkModel):
@@ -87,12 +88,19 @@ def test_literal():
     assert schema == expected
 
 
-def test_inconsistent_literal():
+def test_literal_with_inconsistent_type_arguments_raises_error():
     class MyClass(SparkModel):
         is_this_a_field: Literal['yes', 1]
 
-    with pytest.raises(TypeError):
+    with pytest.raises(FieldConversionError) as exc_info:
         MyClass.model_spark_schema()
+
+    # Check cause
+    assert isinstance(exc_info.value.__cause__, TypeError)
+    assert (
+        'Multiple types detected in `Literal` type. Only one consistent arg type is supported.'
+        in str(exc_info.value.__cause__)
+    )
 
 
 def test_annotated_type():

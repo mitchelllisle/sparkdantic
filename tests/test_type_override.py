@@ -5,6 +5,7 @@ from pydantic import UUID4, Field
 from pyspark.sql.types import IntegerType, LongType, StringType, StructField, StructType
 
 from sparkdantic import SparkModel
+from sparkdantic.exceptions import FieldConversionError
 
 
 class MyModel(SparkModel):
@@ -29,7 +30,11 @@ def test_bad_override():
     class BadOverride(SparkModel):
         id: UUID4 = Field(spark_type='a')
 
-    with pytest.raises(TypeError) as exc_info:
+    with pytest.raises(FieldConversionError) as exc_info:
         BadOverride.model_spark_schema()
 
-    assert '`spark_type` override should be a `pyspark.sql.types.DataType`' in str(exc_info.value)
+    assert 'Error converting field `id` to PySpark type' in str(exc_info.value)
+    # Check cause
+    assert '`spark_type` override should be a `pyspark.sql.types.DataType`' in str(
+        exc_info.value.__context__
+    )

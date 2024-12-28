@@ -13,6 +13,8 @@ from pydantic.fields import FieldInfo
 from pydantic.json_schema import JsonSchemaMode
 from pyspark.sql import types as spark_types
 
+from sparkdantic.exceptions import FieldConversionError
+
 if sys.version_info > (3, 10):
     from types import UnionType  # pragma: no cover
 else:
@@ -116,16 +118,21 @@ def create_spark_schema(
         override = field_info_extra.get('spark_type')
         field_type = _get_union_type_arg(info.annotation)
 
-        if _is_base_model(field_type):
-            spark_type = create_spark_schema(field_type, safe_casting, by_alias, mode)
-        elif override is not None:
-            if not inspect.isclass(override) or not issubclass(override, spark_types.DataType):
-                raise TypeError('`spark_type` override should be a `pyspark.sql.types.DataType`')
-            spark_type = override()
-        elif inspect.isclass(field_type) and issubclass(field_type, spark_types.DataType):
-            spark_type = field_type()
-        else:
-            spark_type = _from_python_type(field_type, info.metadata, safe_casting)
+        try:
+            if _is_base_model(field_type):
+                spark_type = create_spark_schema(field_type, safe_casting, by_alias, mode)
+            elif override is not None:
+                if not inspect.isclass(override) or not issubclass(override, spark_types.DataType):
+                    raise TypeError(
+                        '`spark_type` override should be a `pyspark.sql.types.DataType`'
+                    )
+                spark_type = override()
+            elif inspect.isclass(field_type) and issubclass(field_type, spark_types.DataType):
+                spark_type = field_type()
+            else:
+                spark_type = _from_python_type(field_type, info.metadata, safe_casting)
+        except Exception as e:
+            raise FieldConversionError(f'Error converting field `{name}` to PySpark type') from e
 
         nullable = _is_optional(info.annotation)
         struct_field = spark_types.StructField(name, spark_type, nullable)
@@ -218,8 +225,7 @@ def _from_python_type(
         literal_arg_types = set(map(lambda a: type(a), args))
         if len(literal_arg_types) > 1:
             raise TypeError(
-                'Your model has a `Literal` type with multiple args of different types. Fields defined with '
-                '`Literal` must have one consistent arg type'
+                'Multiple types detected in `Literal` type. Only one consistent arg type is supported.'
             )
         py_type = literal_arg_types.pop()
 
