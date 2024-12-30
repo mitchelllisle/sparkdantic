@@ -6,7 +6,7 @@ from sparkdantic import SparkModel, create_spark_schema
 from sparkdantic.exceptions import FieldConversionError
 
 
-def test_incomplete_type_annotations_raise_error():
+def test_incomplete_list_type_annotations_raise_error():
     class BadListType(SparkModel):
         values: list
 
@@ -16,16 +16,20 @@ def test_incomplete_type_annotations_raise_error():
     assert 'Error converting field `values` to PySpark type' in str(exc_info.value)
     # Check cause
     assert isinstance(exc_info.value.__cause__, TypeError)
-    assert 'list type must have a type argument' in str(exc_info.value.__cause__)
+    assert 'Type argument(s) missing from list' in str(exc_info.value.__cause__)
 
+
+def test_incomplete_dict_type_annotations_raise_error():
     class BadDictType(SparkModel):
         mapping: dict
 
     with pytest.raises(FieldConversionError) as exc_info:
         BadDictType.model_spark_schema()
 
+    assert 'Error converting field `mapping` to PySpark type' in str(exc_info.value)
     # Check cause
-    assert 'dict type must have key and value type arguments' in str(exc_info.value.__cause__)
+    assert isinstance(exc_info.value.__cause__, TypeError)
+    assert 'Type argument(s) missing from dict' in str(exc_info.value.__cause__)
 
 
 def test_user_defined_field_type_raises_error():

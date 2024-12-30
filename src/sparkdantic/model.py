@@ -5,10 +5,10 @@ from datetime import date, datetime, timedelta
 from decimal import Decimal
 from enum import Enum
 from types import MappingProxyType
-from typing import Annotated, Any, Literal, Type, Union, get_args, get_origin, Optional
+from typing import Annotated, Any, Literal, Optional, Type, Union, get_args, get_origin
 from uuid import UUID
 
-from pydantic import AliasChoices, AliasPath, BaseModel, ConfigDict, SecretBytes, SecretStr, Field
+from pydantic import AliasChoices, AliasPath, BaseModel, ConfigDict, Field, SecretBytes, SecretStr
 from pydantic.fields import FieldInfo
 from pydantic.json_schema import JsonSchemaMode
 from pyspark.sql import types as spark_types
@@ -199,21 +199,18 @@ def _from_python_type(
         return create_spark_schema(py_type, safe_casting)
 
     args = get_args(py_type)
-    origin = get_origin(py_type) or py_type
+    origin = get_origin(py_type)
+
+    if origin is None and py_type in (list, dict):
+        raise TypeError(f'Type argument(s) missing from {py_type.__name__}')
 
     # Convert complex types
     if origin is list:
-        if len(args) == 0:
-            raise TypeError('list type must have a type argument')
-
         element_type = _from_python_type(args[0], [])
         contains_null = _is_optional(args[0])
         return spark_types.ArrayType(element_type, contains_null)
 
-    elif origin is dict:
-        if len(args) != 2:
-            raise TypeError('dict type must have key and value type arguments')
-
+    if origin is dict:
         key_type = _from_python_type(args[0], [])
         value_type = _from_python_type(args[1], [])
         value_contains_null = _is_optional(args[1])
