@@ -14,7 +14,8 @@ named `SparkModel` that extends the Pydantic's `BaseModel`.
 
 ## Features
 
-- Conversion from Pydantic model to PySpark schema.
+- Conversion from Pydantic model to PySpark schema
+- Type coercion
 
 ## Usage
 

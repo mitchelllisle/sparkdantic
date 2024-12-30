@@ -14,18 +14,18 @@ def test_override():
         t: str = Field(spark_type=IntegerType)
         o: Union[int, None] = Field(spark_type=LongType)
 
-    schema = MyModel.model_spark_schema()
-    expected = StructType(
+    expected_schema = StructType(
         [
             StructField('id', StringType(), False),
             StructField('t', IntegerType(), False),
             StructField('o', LongType(), True),
         ]
     )
-    assert schema == expected
+    actual_schema = MyModel.model_spark_schema()
+    assert actual_schema == expected_schema
 
 
-def test_bad_override_raises_error():
+def test_non_spark_type_override_raises_error():
     class BadOverride(SparkModel):
         id: UUID4 = Field(spark_type='a')
 
@@ -37,3 +37,13 @@ def test_bad_override_raises_error():
     assert '`spark_type` override should be a `pyspark.sql.types.DataType`' in str(
         exc_info.value.__context__
     )
+
+
+def test_spark_type_instance_override_raises_error():
+    class InstanceOverride(SparkModel):
+        id: int = Field(spark_type=StringType())
+
+    with pytest.raises(FieldConversionError) as exc_info:
+        InstanceOverride.model_spark_schema()
+
+    assert 'Error converting field `id` to PySpark type' in str(exc_info.value)
