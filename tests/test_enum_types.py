@@ -4,7 +4,7 @@ import pytest
 from pyspark.sql.types import IntegerType, StringType, StructField, StructType
 
 from sparkdantic import SparkModel
-from sparkdantic.exceptions import FieldConversionError
+from sparkdantic.exceptions import TypeConversionError
 
 
 def test_supported_enum_fields():
@@ -37,7 +37,7 @@ def test_unsupported_enum_type_raises_error():
     class ClassicEnumModel(SparkModel):
         e: ClassicEnum
 
-    with pytest.raises(FieldConversionError) as exc_info:
+    with pytest.raises(TypeConversionError) as exc_info:
         ClassicEnumModel.model_spark_schema()
 
     assert 'Error converting field `e` to PySpark type' in str(exc_info.value)
@@ -53,7 +53,7 @@ def test_unsupported_enum_type_raises_error():
     class FloatEnumModel(SparkModel):
         e: FloatEnum
 
-    with pytest.raises(FieldConversionError) as exc_info:
+    with pytest.raises(TypeConversionError) as exc_info:
         FloatEnumModel.model_spark_schema()
 
     # Check cause

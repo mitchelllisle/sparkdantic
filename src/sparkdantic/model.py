@@ -13,7 +13,7 @@ from pydantic.fields import FieldInfo
 from pydantic.json_schema import JsonSchemaMode
 from pyspark.sql import types as spark_types
 
-from sparkdantic.exceptions import FieldConversionError
+from sparkdantic.exceptions import TypeConversionError
 
 if sys.version_info > (3, 10):
     from types import UnionType  # pragma: no cover
@@ -132,7 +132,7 @@ def create_spark_schema(
             else:
                 spark_type = _from_python_type(field_type, info.metadata, safe_casting)
         except Exception as e:
-            raise FieldConversionError(f'Error converting field `{name}` to PySpark type') from e
+            raise TypeConversionError(f'Error converting field `{name}` to PySpark type') from e
 
         nullable = _is_optional(info.annotation)
         struct_field = spark_types.StructField(name, spark_type, nullable)
