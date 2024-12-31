@@ -5,7 +5,7 @@ from datetime import date, datetime, timedelta
 from decimal import Decimal
 from enum import Enum
 from types import MappingProxyType
-from typing import Annotated, Any, Literal, Optional, Type, Union, get_args, get_origin
+from typing import Annotated, Any, Dict, Literal, Optional, Type, Union, get_args, get_origin
 from uuid import UUID
 
 from pydantic import AliasChoices, AliasPath, BaseModel, ConfigDict, Field, SecretBytes, SecretStr
@@ -31,20 +31,20 @@ BaseModelOrSparkModel = Union[BaseModel, 'SparkModel']
 
 _type_mapping = MappingProxyType(
     {
-        int: spark_types.IntegerType,
-        float: spark_types.DoubleType,
-        str: spark_types.StringType,
-        SecretStr: spark_types.StringType,
-        bool: spark_types.BooleanType,
-        bytes: spark_types.BinaryType,
-        SecretBytes: spark_types.BinaryType,
-        list: spark_types.ArrayType,
-        dict: spark_types.MapType,
-        datetime: spark_types.TimestampType,
-        date: spark_types.DateType,
-        Decimal: spark_types.DecimalType,
-        timedelta: spark_types.DayTimeIntervalType,
-        UUID: spark_types.StringType,
+        int: 'integer',
+        float: 'double',
+        str: 'string',
+        SecretStr: 'string',
+        bool: 'boolean',
+        bytes: 'binary',
+        SecretBytes: 'binary',
+        list: 'array',
+        dict: 'map',
+        datetime: 'timestamp',
+        date: 'date',
+        Decimal: 'decimal',
+        timedelta: 'interval day to second',
+        UUID: 'string',
     }
 )
 
@@ -84,14 +84,34 @@ class SparkModel(BaseModel):
         """
         return create_spark_schema(cls, safe_casting, by_alias, mode)
 
+    @classmethod
+    def model_json_spark_schema(
+        cls,
+        safe_casting: bool = False,
+        by_alias: bool = True,
+        mode: JsonSchemaMode = 'validation',
+    ) -> Dict[str, Any]:
+        """Generates a PySpark JSON compatible schema from the model fields. This operates similarly to
+        `pydantic.BaseModel.model_json_schema()`.
 
-def create_spark_schema(
+        Args:
+            safe_casting (bool): Indicates whether to use safe casting for integer types.
+            by_alias (bool): Indicates whether to use attribute aliases (`serialization_alias` or `alias`) or not.
+            mode (pydantic.json_schema.JsonSchemaMode): The mode in which to generate the schema.
+
+        Returns:
+            Dict[str, Any]: The generated PySpark JSON schema.
+        """
+        return create_json_spark_schema(cls, safe_casting, by_alias, mode)
+
+
+def create_json_spark_schema(
     model: Type[BaseModelOrSparkModel],
     safe_casting: bool = False,
     by_alias: bool = True,
     mode: JsonSchemaMode = 'validation',
-) -> spark_types.StructType:
-    """Generates a PySpark schema from the model fields. This operates similarly to
+) -> Dict[str, Any]:
+    """Generates a PySpark JSON compatible schema from the model fields. This operates similarly to
     `pydantic.BaseModel.model_json_schema()`.
 
     Args:
@@ -101,7 +121,7 @@ def create_spark_schema(
         mode (pydantic.json_schema.JsonSchemaMode): The mode in which to generate the schema.
 
     Returns:
-        pyspark.sql.types.StructType: The generated PySpark schema.
+        Dict[str, Any]: The generated PySpark JSON schema
     """
     if not _is_base_model(model):
         raise TypeError('`model` must be of type `SparkModel` or `pydantic.BaseModel`')
@@ -120,27 +140,56 @@ def create_spark_schema(
 
         try:
             if _is_base_model(field_type):
-                spark_type = create_spark_schema(field_type, safe_casting, by_alias, mode)
+                spark_type = create_json_spark_schema(field_type, safe_casting, by_alias, mode)
             elif override is not None:
                 if not inspect.isclass(override) or not issubclass(override, spark_types.DataType):
                     raise TypeError(
                         '`spark_type` override should be a `pyspark.sql.types.DataType`'
                     )
-                spark_type = override()
+                spark_type = override.typeName()
             elif inspect.isclass(field_type) and issubclass(field_type, spark_types.DataType):
-                spark_type = field_type()
+                spark_type = field_type.typeName()
             else:
-                spark_type = _from_python_type(field_type, info.metadata, safe_casting)
+                spark_type = _from_python_type(field_type, info.metadata, safe_casting)  # type: ignore
         except Exception as e:
             raise TypeConversionError(f'Error converting field `{name}` to PySpark type') from e
 
         nullable = _is_optional(info.annotation)
-        struct_field = spark_types.StructField(name, spark_type, nullable)
+        struct_field = {
+            'name': name,
+            'type': spark_type,
+            'nullable': nullable,
+            'metadata': {},
+        }
         fields.append(struct_field)
-    return spark_types.StructType(fields)
+    return {
+        'type': 'struct',
+        'fields': fields,
+    }
 
 
-def _get_spark_type(t: Type) -> Type[spark_types.DataType]:
+def create_spark_schema(
+    model: Type[BaseModelOrSparkModel],
+    safe_casting: bool = False,
+    by_alias: bool = True,
+    mode: JsonSchemaMode = 'validation',
+) -> spark_types.StructType:
+    """Generates a PySpark schema from the model fields.
+
+    Args:
+        model (pydantic.BaseModel or SparkModel): The pydantic model to generate the schema from.
+        safe_casting (bool): Indicates whether to use safe casting for integer types.
+        by_alias (bool): Indicates whether to use attribute aliases (`serialization_alias` or `alias`) or not.
+        mode (pydantic.json_schema.JsonSchemaMode): The mode in which to generate the schema.
+
+    Returns:
+        pyspark.sql.types.StructType: The generated PySpark schema.
+    """
+    json_schema = create_json_spark_schema(model, safe_casting, by_alias, mode)
+    return spark_types.StructType.fromJson(json_schema)
+
+
+def _get_spark_type(t: Type) -> str:
     """Returns the corresponding PySpark data type for a given Python type.
 
     Args:
@@ -182,7 +231,7 @@ def _from_python_type(
     type_: Type,
     metadata: list[Any],
     safe_casting: bool = False,
-) -> spark_types.DataType:
+) -> Union[str, Dict[str, Any]]:
     """Converts a Python type to a corresponding PySpark data type.
 
     Args:
@@ -191,12 +240,12 @@ def _from_python_type(
         safe_casting (bool): Indicates whether to use safe casting for integer types.
 
     Returns:
-        DataType: The corresponding PySpark data type.
+        Union[str, Dict[str, Any]]: The corresponding PySpark data type (dict for complex types).
     """
     py_type = _get_union_type_arg(type_)
 
     if _is_base_model(py_type):
-        return create_spark_schema(py_type, safe_casting)
+        return create_json_spark_schema(py_type, safe_casting)
 
     args = get_args(py_type)
     origin = get_origin(py_type)
@@ -208,13 +257,18 @@ def _from_python_type(
     if origin is list:
         element_type = _from_python_type(args[0], [])
         contains_null = _is_optional(args[0])
-        return spark_types.ArrayType(element_type, contains_null)
+        return {'type': 'array', 'elementType': element_type, 'containsNull': contains_null}
 
     if origin is dict:
         key_type = _from_python_type(args[0], [])
         value_type = _from_python_type(args[1], [])
         value_contains_null = _is_optional(args[1])
-        return spark_types.MapType(key_type, value_type, value_contains_null)
+        return {
+            'type': 'map',
+            'keyType': key_type,
+            'valueType': value_type,
+            'valueContainsNull': value_contains_null,
+        }
 
     if origin is Literal:
         # PySpark doesn't have an equivalent type for Literal. To allow Literal usage with a model we check all the
@@ -235,16 +289,16 @@ def _from_python_type(
 
     spark_type = _get_spark_type(py_type)
 
-    if safe_casting is True and spark_type is spark_types.IntegerType:
-        spark_type = spark_types.LongType
+    if safe_casting is True and spark_type == 'integer':
+        spark_type = 'long'
 
-    if spark_type is spark_types.DecimalType:
+    if spark_type == 'decimal':
         meta = None if len(metadata) < 1 else deepcopy(metadata).pop()
         max_digits = getattr(meta, 'max_digits', 10)
         decimal_places = getattr(meta, 'decimal_places', 0)
-        return spark_types.DecimalType(precision=max_digits, scale=decimal_places)
+        return f'decimal({max_digits}, {decimal_places})'
 
-    return spark_type()
+    return spark_type
 
 
 def _is_base_model(cls: Type) -> bool:
