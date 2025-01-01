@@ -11,7 +11,14 @@ from uuid import UUID
 from pydantic import AliasChoices, AliasPath, BaseModel, ConfigDict, Field, SecretBytes, SecretStr
 from pydantic.fields import FieldInfo
 from pydantic.json_schema import JsonSchemaMode
-from pyspark.sql import types as spark_types
+
+_have_pyspark = True
+_pyspark_import_error = None
+try:
+    from pyspark.sql import types as spark_types
+except ImportError as e:
+    _have_pyspark = False
+    _pyspark_import_error = e
 
 from sparkdantic.exceptions import TypeConversionError
 
@@ -49,7 +56,7 @@ _type_mapping = MappingProxyType(
 )
 
 
-def SparkField(*args, spark_type: Optional[Type[spark_types.DataType]] = None, **kwargs) -> Field:
+def SparkField(*args, spark_type: Optional[Type['spark_types.DataType']] = None, **kwargs) -> Field:
     if spark_type is not None:
         kwargs['spark_type'] = spark_type
     return Field(*args, **kwargs)
@@ -70,7 +77,7 @@ class SparkModel(BaseModel):
         safe_casting: bool = False,
         by_alias: bool = True,
         mode: JsonSchemaMode = 'validation',
-    ) -> spark_types.StructType:
+    ) -> 'spark_types.StructType':
         """Generates a PySpark schema from the model fields. This operates similarly to
         `pydantic.BaseModel.model_json_schema()`.
 
@@ -82,6 +89,8 @@ class SparkModel(BaseModel):
         Returns:
             pyspark.sql.types.StructType: The generated PySpark schema.
         """
+        if not _have_pyspark:
+            raise _pyspark_import_error  # type: ignore
         return create_spark_schema(cls, safe_casting, by_alias, mode)
 
     @classmethod
@@ -142,12 +151,23 @@ def create_json_spark_schema(
             if _is_base_model(field_type):
                 spark_type = create_json_spark_schema(field_type, safe_casting, by_alias, mode)
             elif override is not None:
-                if not inspect.isclass(override) or not issubclass(override, spark_types.DataType):
-                    raise TypeError(
-                        '`spark_type` override should be a `pyspark.sql.types.DataType`'
-                    )
-                spark_type = override.typeName()
-            elif inspect.isclass(field_type) and issubclass(field_type, spark_types.DataType):
+                if _have_pyspark:
+                    if not inspect.isclass(override) or not issubclass(
+                        override, spark_types.DataType
+                    ):
+                        raise TypeError(
+                            '`spark_type` override should be a `pyspark.sql.types.DataType`'
+                        )
+                    spark_type = override.typeName()
+                else:
+                    spark_type = override
+            elif isinstance(field_type, str):
+                spark_type = field_type
+            elif (
+                inspect.isclass(field_type)
+                and _have_pyspark
+                and issubclass(field_type, spark_types.DataType)
+            ):
                 spark_type = field_type.typeName()
             else:
                 spark_type = _from_python_type(field_type, info.metadata, safe_casting)  # type: ignore
@@ -173,7 +193,7 @@ def create_spark_schema(
     safe_casting: bool = False,
     by_alias: bool = True,
     mode: JsonSchemaMode = 'validation',
-) -> spark_types.StructType:
+) -> 'spark_types.StructType':
     """Generates a PySpark schema from the model fields.
 
     Args:
@@ -185,6 +205,8 @@ def create_spark_schema(
     Returns:
         pyspark.sql.types.StructType: The generated PySpark schema.
     """
+    if not _have_pyspark:
+        raise _pyspark_import_error  # type: ignore
     json_schema = create_json_spark_schema(model, safe_casting, by_alias, mode)
     return spark_types.StructType.fromJson(json_schema)
 
@@ -257,7 +279,11 @@ def _from_python_type(
     if origin is list:
         element_type = _from_python_type(args[0], [])
         contains_null = _is_optional(args[0])
-        return {'type': 'array', 'elementType': element_type, 'containsNull': contains_null}
+        return {
+            'type': 'array',
+            'elementType': element_type,
+            'containsNull': contains_null,
+        }
 
     if origin is dict:
         key_type = _from_python_type(args[0], [])
