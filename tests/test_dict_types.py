@@ -19,35 +19,32 @@ from pyspark.sql.types import (
     TimestampType,
 )
 
-from sparkdantic.model import SparkModel
+from sparkdantic import SparkModel
 
 
-class IntTestEnum(IntEnum):
-    X = 1
-    Y = 2
+def test_dict_fields():
+    class IntegerEnum(IntEnum):
+        X = 1
+        Y = 2
 
+    class InnerModel(BaseModel):
+        name: str
 
-class TestBase(BaseModel):
-    name: str
+    class DictModel(SparkModel):
+        s: Dict[int, int]
+        t: Dict[float, float]
+        u: Dict[str, str]
+        v: Dict[bool, bool]
+        w: Dict[bytes, bytes]
+        x: Dict[Decimal, Decimal]
+        bb: Dict[date, date]
+        ff: Dict[datetime, datetime]
+        jj: Dict[timedelta, timedelta]
+        kk: Dict[IntegerEnum, IntegerEnum]
+        ll: dict[str, str]
+        mm: dict[str, Union[str, None]]
+        nn: dict[str, InnerModel]
 
-
-class DictValuesModel(SparkModel):
-    s: Dict[int, int]
-    t: Dict[float, float]
-    u: Dict[str, str]
-    v: Dict[bool, bool]
-    w: Dict[bytes, bytes]
-    x: Dict[Decimal, Decimal]
-    bb: Dict[date, date]
-    ff: Dict[datetime, datetime]
-    jj: Dict[timedelta, timedelta]
-    kk: Dict[IntTestEnum, IntTestEnum]
-    ll: dict[str, str]
-    mm: dict[str, Union[str, None]]
-    nn: dict[str, TestBase]
-
-
-def test_dict_values():
     expected_schema = StructType(
         [
             StructField('s', MapType(IntegerType(), IntegerType(), False), False),
@@ -74,5 +71,5 @@ def test_dict_values():
         ]
     )
 
-    generated_schema = DictValuesModel.model_spark_schema()
-    assert generated_schema == expected_schema
+    actual_schema = DictModel.model_spark_schema()
+    assert actual_schema == expected_schema

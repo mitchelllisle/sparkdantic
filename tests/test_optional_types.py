@@ -17,28 +17,26 @@ from pyspark.sql.types import (
     TimestampType,
 )
 
-from sparkdantic.model import SparkModel
+from sparkdantic import SparkModel
 
 
-class IntTestEnum(IntEnum):
-    X = 1
-    Y = 2
+def test_optional_model_fields():
+    class IntTestEnum(IntEnum):
+        X = 1
+        Y = 2
 
+    class OptionalsModel(SparkModel):
+        g: Optional[int]
+        h: Optional[float]
+        i: Optional[str]
+        j: Optional[bool]
+        k: Optional[bytes]
+        y: Optional[Decimal]
+        z: Optional[date]
+        dd: Optional[datetime]
+        hh: Optional[timedelta]
+        ii: Optional[IntTestEnum]
 
-class OptionalValuesModel(SparkModel):
-    g: Optional[int]
-    h: Optional[float]
-    i: Optional[str]
-    j: Optional[bool]
-    k: Optional[bytes]
-    l: Optional[Decimal]
-    z: Optional[date]
-    dd: Optional[datetime]
-    hh: Optional[timedelta]
-    ii: Optional[IntTestEnum]
-
-
-def test_optional_values():
     expected_schema = StructType(
         [
             StructField('g', IntegerType(), True),
@@ -46,12 +44,12 @@ def test_optional_values():
             StructField('i', StringType(), True),
             StructField('j', BooleanType(), True),
             StructField('k', BinaryType(), True),
-            StructField('l', DecimalType(10, 0), True),
+            StructField('y', DecimalType(10, 0), True),
             StructField('z', DateType(), True),
             StructField('dd', TimestampType(), True),
             StructField('hh', DayTimeIntervalType(0, 3), True),
             StructField('ii', IntegerType(), True),
         ]
     )
-    generated_schema = OptionalValuesModel.model_spark_schema()
-    assert generated_schema == expected_schema
+    actual_schema = OptionalsModel.model_spark_schema()
+    assert actual_schema == expected_schema
