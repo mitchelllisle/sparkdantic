@@ -10,16 +10,16 @@ SUPPORTED_SUB_CLASSES = [SparkModel, BaseModel]
 
 
 @pytest.mark.parametrize('sub_class', SUPPORTED_SUB_CLASSES)
-def test_recursive(sub_class):
+def test_nested_models(sub_class):
     class InnerModel(sub_class):
         name: str = 'test'
         age: int = 50
 
-    class RecursiveModel(SparkModel):
+    class OuterModel(SparkModel):
         details: InnerModel
         created: str = 'today'
 
-    expected = StructType(
+    expected_schema = StructType(
         [
             StructField(
                 'details',
@@ -34,24 +34,22 @@ def test_recursive(sub_class):
             StructField('created', StringType(), False),
         ]
     )
-    inner = InnerModel()
-    rec = RecursiveModel(details=inner)
-    schema = rec.model_spark_schema()
-    assert schema == expected
+    actual_schema = OuterModel.model_spark_schema()
+    assert actual_schema == expected_schema
 
 
 @pytest.mark.parametrize('sub_class', SUPPORTED_SUB_CLASSES)
-def test_optional_child_classes(sub_class):
-    class ChildSchema(sub_class):
+def test_optional_nested_models(sub_class):
+    class InnerModel(sub_class):
         ncol1: str
         ncol2: Optional[str] = None
         ncol3: Optional[List[str]] = None
 
-    class ParentSchema(SparkModel):
-        col1: Optional[ChildSchema] = None
+    class OuterModel(SparkModel):
+        col1: Optional[InnerModel] = None
 
-    schema = ParentSchema.model_spark_schema()
-    expected = StructType(
+    actual_schema = OuterModel.model_spark_schema()
+    expected_schema = StructType(
         [
             StructField(
                 'col1',
@@ -66,4 +64,4 @@ def test_optional_child_classes(sub_class):
             )
         ]
     )
-    assert schema == expected
+    assert actual_schema == expected_schema
