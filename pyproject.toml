@@ -9,11 +9,13 @@ packages = [{include = "sparkdantic", from = "src"}]
 [tool.poetry.dependencies]
 python = "^3.9,<4.0.0"
 pydantic = "^2.1.1"
-pyspark = "^3.3.0"
+pyspark = { version = "^3.3.0", optional = true }
 jmespath = "^1.0.1"
 pyparsing = "^3.1.1"
 packaging = "^24.2"
 
+[tool.poetry.extras]
+pyspark = ["pyspark"]
 
 [tool.poetry.group.dev.dependencies]
 bumpversion = "^0.6.0"

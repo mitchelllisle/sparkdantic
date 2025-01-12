@@ -1340,9 +1340,10 @@ virtualenv = ">=20.10.0"
 name = "py4j"
 version = "0.10.9.7"
 description = "Enables Python programs to dynamically access arbitrary Java objects"
-optional = false
+optional = true
 python-versions = "*"
 groups = ["main"]
+markers = "extra == \"pyspark\""
 files = [
     {file = "py4j-0.10.9.7-py2.py3-none-any.whl", hash = "sha256:85defdfd2b2376eb3abf5ca6474b51ab7e0de341c75a02f46dc9b5976f5a5c1b"},
     {file = "py4j-0.10.9.7.tar.gz", hash = "sha256:0b6e5315bb3ada5cf62ac651d107bb2ebc02def3dee9d9548e3baac644ea8dbb"},
@@ -1572,9 +1573,10 @@ diagrams = ["jinja2", "railroad-diagrams"]
 name = "pyspark"
 version = "3.5.4"
 description = "Apache Spark Python API"
-optional = false
+optional = true
 python-versions = ">=3.8"
 groups = ["main"]
+markers = "extra == \"pyspark\""
 files = [
     {file = "pyspark-3.5.4.tar.gz", hash = "sha256:1c2926d63020902163f58222466adf6f8016f6c43c1f319b8e7a71dbaa05fc51"},
 ]
@@ -2190,7 +2192,10 @@ markers = {dev = "(platform_machine != \"ppc64le\" and platform_machine != \"s39
 doc = ["furo", "jaraco.packaging (>=9.3)", "jaraco.tidelift (>=1.4)", "rst.linker (>=1.9)", "sphinx (>=3.5)", "sphinx-lint"]
 test = ["big-O", "jaraco.functools", "jaraco.itertools", "jaraco.test", "more-itertools", "pytest (>=6,!=8.1.*)", "pytest-checkdocs (>=2.4)", "pytest-cov", "pytest-enabler (>=2.2)", "pytest-ignore-flaky", "pytest-mypy", "pytest-ruff (>=0.2.1)"]
 
+[extras]
+pyspark = ["pyspark"]
+
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.9,<4.0.0"
-content-hash = "14cf9ce837fb29e43d6e6c51c9eb99615fe8cf5ac823684334bf97cc0972bd44"
+content-hash = "9e5e0a7c0bdeda155e438d86d601ede687a2ee1295eb49a2a19625f53c709b2c"
