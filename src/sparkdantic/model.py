@@ -5,7 +5,18 @@ from datetime import date, datetime, timedelta
 from decimal import Decimal
 from enum import Enum
 from types import MappingProxyType
-from typing import Annotated, Any, Dict, Literal, Optional, Type, Union, get_args, get_origin
+from typing import (
+    TYPE_CHECKING,
+    Annotated,
+    Any,
+    Dict,
+    Literal,
+    Optional,
+    Type,
+    Union,
+    get_args,
+    get_origin,
+)
 from uuid import UUID
 
 from pydantic import AliasChoices, AliasPath, BaseModel, ConfigDict, Field, SecretBytes, SecretStr
@@ -17,6 +28,9 @@ from sparkdantic.utils import have_pyspark, pyspark_import_error, require_pyspar
 
 if have_pyspark:
     require_pyspark_version_in_range()
+    from pyspark.sql.types import DataType, StructType
+
+if TYPE_CHECKING:
     from pyspark.sql.types import DataType, StructType
 
 if sys.version_info > (3, 10):
@@ -53,7 +67,7 @@ _type_mapping = MappingProxyType(
 )
 
 
-def SparkField(*args, spark_type: Optional[Type['DataType']] = None, **kwargs) -> Field:
+def SparkField(*args, spark_type: Optional[Union[Type['DataType'], str]] = None, **kwargs) -> Field:
     if spark_type is not None:
         kwargs['spark_type'] = spark_type
     return Field(*args, **kwargs)
@@ -144,26 +158,32 @@ def create_json_spark_schema(
         override = field_info_extra.get('spark_type')
         field_type = _get_union_type_arg(info.annotation)
 
+        spark_type: Union[str, Dict[str, Any]]
+
         try:
             if _is_base_model(field_type):
                 spark_type = create_json_spark_schema(field_type, safe_casting, by_alias, mode)
             elif override is not None:
-                if have_pyspark:
-                    if not inspect.isclass(override) or not issubclass(override, DataType):
-                        raise TypeError(
-                            '`spark_type` override should be a `pyspark.sql.types.DataType`'
-                        )
+                if isinstance(override, str):
+                    spark_type = override
+                elif have_pyspark and _is_spark_datatype(override):
                     spark_type = override.typeName()
                 else:
-                    spark_type = override
+                    msg = '`spark_type` override should be a `str` type name (e.g. long)'
+                    if have_pyspark:
+                        msg += ' or `pyspark.sql.types.DataType` (e.g. LongType)'
+                    msg += f', but got {override}'
+                    raise TypeError(msg)
             elif isinstance(field_type, str):
                 spark_type = field_type
-            elif inspect.isclass(field_type) and have_pyspark and issubclass(field_type, DataType):
+            elif have_pyspark and _is_spark_datatype(field_type):
                 spark_type = field_type.typeName()
             else:
-                spark_type = _from_python_type(field_type, info.metadata, safe_casting)  # type: ignore
-        except Exception as e:
-            raise TypeConversionError(f'Error converting field `{name}` to PySpark type') from e
+                spark_type = _from_python_type(field_type, info.metadata, safe_casting)
+        except Exception as raised_error:
+            raise TypeConversionError(
+                f'Error converting field `{name}` to PySpark type'
+            ) from raised_error
 
         nullable = _is_optional(info.annotation)
         struct_field = {
@@ -381,3 +401,15 @@ def _get_field_alias(name: str, field_info: FieldInfo, mode: JsonSchemaMode = 'v
         else:
             alias = validation_alias
     return alias or name
+
+
+def _is_spark_datatype(t: Type) -> bool:
+    """Determines if a type is a PySpark DataType.
+
+    Args:
+        t (Type): The Python type to check.
+
+    Returns:
+        bool: a boolean indicating if the type is a PySpark DataType.
+    """
+    return inspect.isclass(t) and issubclass(t, DataType)
