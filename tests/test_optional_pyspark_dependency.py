@@ -7,32 +7,36 @@ from sparkdantic.exceptions import SparkdanticImportError
 
 @pytest.fixture
 def no_pyspark(monkeypatch):
-    for module in [utils, model]:
-        monkeypatch.setattr(module, 'have_pyspark', False)
-        monkeypatch.setattr(module, 'pyspark_import_error', ImportError('No module named pyspark'))
+    monkeypatch.setattr(utils, 'have_pyspark', False)
 
 
 def test_create_spark_schema_raises_import_error_when_no_pyspark(no_pyspark):
     class NoPySparkModel(pydantic.BaseModel):
         pass
 
-    with pytest.raises(ImportError) as exc:
+    with pytest.raises(SparkdanticImportError) as exc:
         model.create_spark_schema(NoPySparkModel)
-    assert 'No module named pyspark' == str(exc.value)
+    assert (
+        'Pyspark is not installed. Install pyspark using `pip install sparkdantic[pyspark]`'
+        == str(exc.value)
+    )
 
 
 def test_model_spark_schema_raises_import_error_when_no_pyspark(no_pyspark):
     class NoPySparkModel(model.SparkModel):
         pass
 
-    with pytest.raises(ImportError) as exc:
+    with pytest.raises(SparkdanticImportError) as exc:
         NoPySparkModel.model_spark_schema()
-    assert 'No module named pyspark' == str(exc.value)
+    assert (
+        'Pyspark is not installed. Install pyspark using `pip install sparkdantic[pyspark]`'
+        == str(exc.value)
+    )
 
 
 def test_no_pyspark_raises_import_error(no_pyspark):
     with pytest.raises(SparkdanticImportError) as exc:
-        utils.require_pyspark_version_in_range()
+        utils.require_pyspark()
     assert (
         'Pyspark is not installed. Install pyspark using `pip install sparkdantic[pyspark]`'
         == str(exc.value)
