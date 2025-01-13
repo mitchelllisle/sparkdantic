@@ -23,11 +23,11 @@ from pydantic import AliasChoices, AliasPath, BaseModel, ConfigDict, Field, Secr
 from pydantic.fields import FieldInfo
 from pydantic.json_schema import JsonSchemaMode
 
+from sparkdantic import utils
 from sparkdantic.exceptions import TypeConversionError
-from sparkdantic.utils import have_pyspark, pyspark_import_error, require_pyspark_version_in_range
 
-if have_pyspark:
-    require_pyspark_version_in_range()
+if utils.have_pyspark:
+    utils.require_pyspark_version_in_range()
     from pyspark.sql.types import DataType, StructType
 
 if TYPE_CHECKING:
@@ -100,8 +100,6 @@ class SparkModel(BaseModel):
         Returns:
             pyspark.sql.types.StructType: The generated PySpark schema.
         """
-        if not have_pyspark:
-            raise pyspark_import_error  # type: ignore
         return create_spark_schema(cls, safe_casting, by_alias, mode)
 
     @classmethod
@@ -166,17 +164,17 @@ def create_json_spark_schema(
             elif override is not None:
                 if isinstance(override, str):
                     spark_type = override
-                elif have_pyspark and _is_spark_datatype(override):
+                elif utils.have_pyspark and _is_spark_datatype(override):
                     spark_type = override.typeName()
                 else:
                     msg = '`spark_type` override should be a `str` type name (e.g. long)'
-                    if have_pyspark:
+                    if utils.have_pyspark:
                         msg += ' or `pyspark.sql.types.DataType` (e.g. LongType)'
                     msg += f', but got {override}'
                     raise TypeError(msg)
             elif isinstance(field_type, str):
                 spark_type = field_type
-            elif have_pyspark and _is_spark_datatype(field_type):
+            elif utils.have_pyspark and _is_spark_datatype(field_type):
                 spark_type = field_type.typeName()
             else:
                 spark_type = _from_python_type(field_type, info.metadata, safe_casting)
@@ -216,8 +214,7 @@ def create_spark_schema(
     Returns:
         pyspark.sql.types.StructType: The generated PySpark schema.
     """
-    if not have_pyspark:
-        raise pyspark_import_error  # type: ignore
+    utils.require_pyspark()
     json_schema = create_json_spark_schema(model, safe_casting, by_alias, mode)
     return StructType.fromJson(json_schema)
 
