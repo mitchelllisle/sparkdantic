@@ -3,6 +3,4 @@ class TypeConversionError(Exception):
 
 
 class SparkdanticImportError(ImportError):
-    """
-    Wrapper class for ImportError to support error classes.
-    """
+    """Error importing PySpark. Raised when PySpark is not installed or the installed version is not supported."""
