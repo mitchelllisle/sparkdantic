@@ -73,13 +73,13 @@ install-tests:
 	poetry install --only test
 
 install-all:
-	poetry install --with dev,test,docs
+	poetry install --with dev,test,docs -E pyspark
 
 install-dev-local: ## install all the stuff you need to develop locally
 	pip install --upgrade pip
 	pip install wheel
 	pip install -e .
-	poetry install --with dev,test,docs
+	poetry install --with dev,test,docs -E pyspark
 	pre-commit install
 
 publish: dist ## publish the package to PyPI

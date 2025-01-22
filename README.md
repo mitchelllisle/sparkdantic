@@ -14,8 +14,29 @@ named `SparkModel` that extends the Pydantic's `BaseModel`.
 
 ## Features
 
-- Conversion from Pydantic model to PySpark schema
+- Conversion from Pydantic model to PySpark schema (`StructType` or JSON)
 - Type coercion
+- PySpark as an optional dependency
+
+## Installation
+
+Without PySpark:
+
+```shell
+pip install sparkdantic
+```
+
+> Note: only **JSON** schema generation features are available without PySpark installed. If you attempt to use PySpark-dependent schema generation features, SparkDantic will check that a supported version of Pyspark is installed.
+
+With PySpark:
+
+```shell
+pip install sparkdantic[pyspark]
+```
+
+### Supported PySpark versions
+
+`3.3.0` or higher, but not `4.0`
 
 ## Usage
 
@@ -50,7 +71,7 @@ class MyEnumModel(SparkModel):
 
 #### Using `SparkModel`
 
-Pydantic has existing models for generating json schemas (with `model_json_schema`). With a `SparkModel` you can 
+Pydantic has existing models for generating [JSON schemas](https://docs.pydantic.dev/2.10/concepts/json_schema/) (with `model_json_schema`). With a `SparkModel` you can 
 generate a PySpark schema from the model fields using the `model_spark_schema()` method:
 
 ```python
@@ -67,12 +88,50 @@ StructType([
 ])
 ```
 
+You can also generate a [PySpark-compatible JSON schema](https://spark.apache.org/docs/3.5.4/api/python/reference/pyspark.sql/api/pyspark.sql.types.StructType.html#pyspark.sql.types.StructType.fromJson) from the model fields using the `model_json_spark_schema` method:
+
+```python
+json_spark_schema = MyModel.model_json_spark_schema()
+```
+
+Provides this schema:
+
+```python
+{
+    "type": "struct",
+    "fields": [
+        {
+            "name": "name",
+            "type": "string",
+            "nullable": False,
+            "metadata": {}
+        },
+        {
+            "name": "age",
+            "type": "integer",
+            "nullable": False,
+            "metadata": {}
+        },
+        {
+            "name": "hobbies",
+            "type": {
+                "type": "array",
+                "elementType": "string",
+                "containsNull": False
+            },
+            "nullable": False,
+            "metadata": {}
+        }
+    ]
+}
+```
+
 #### Using Pydantic `BaseModel`
 
 You can also generate a PySpark schema for existing Pydantic models using the `create_spark_schema` function:
 
 ```python
-from sparkdantic import create_spark_schema
+from sparkdantic import create_spark_schema, create_json_spark_schema
 
 class EmployeeModel(BaseModel):
     id: int
@@ -81,11 +140,12 @@ class EmployeeModel(BaseModel):
     department_code: str
 
 spark_schema = create_spark_schema(EmployeeModel)
+json_spark_schema = create_json_spark_schema(EmployeeModel)
 ```
 
 > ℹ️  In addition to the automatic type conversion, you can also explicitly coerce data types to Spark native types by 
->  setting the `spark_type` attribute in the `SparkField` function (which extends the Pydantic `Field` function), like so: `SparkField(spark_type=DataType)`.
->  Please replace DataType with the actual Spark data type you want to use.
+>  setting the `spark_type` attribute in the `SparkField` function (which extends the Pydantic `Field` function), like so: `SparkField(spark_type=<datatype>)`.
+>  `datatype` accepts `str` (e.g. `"bigint"`) or `pyspark.sql.types.DataType` (e.g. `LongType`).
 >  This is useful when you want to use a specific data type then the one that Sparkdantic infers by default. 
 
 ## Contributing
