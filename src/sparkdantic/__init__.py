@@ -3,3 +3,9 @@ __author__ = 'Mitchell Lisle'
 __email__ = 'm.lisle90@gmail.com'
 
 from sparkdantic.model import SparkField, SparkModel, create_spark_schema
+
+__all__ = [
+    'SparkField',
+    'SparkModel',
+    'create_spark_schema',
+]
