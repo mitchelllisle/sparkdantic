@@ -31,7 +31,7 @@ pip install sparkdantic
 With PySpark:
 
 ```shell
-pip install sparkdantic[pyspark]
+pip install "sparkdantic[pyspark]"
 ```
 
 ### Supported PySpark versions
