@@ -13,12 +13,14 @@ def test_override():
         id: int = Field(spark_type=StringType)
         t: str = Field(spark_type=IntegerType)
         o: Union[int, None] = Field(spark_type=LongType)
+        s: dict = Field(spark_type=StructType([StructField('a', StringType(), False)]))
 
     expected_schema = StructType(
         [
             StructField('id', StringType(), False),
             StructField('t', IntegerType(), False),
             StructField('o', LongType(), True),
+            StructField('s', StructType([StructField('a', StringType(), False)]), False),
         ]
     )
     actual_schema = MyModel.model_spark_schema()

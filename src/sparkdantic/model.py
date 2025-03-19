@@ -166,6 +166,8 @@ def create_json_spark_schema(
                     spark_type = override
                 elif utils.have_pyspark and _is_spark_datatype(override):
                     spark_type = override.typeName()
+                    if spark_type == 'struct':
+                        spark_type = override.jsonValue()
                 else:
                     msg = '`spark_type` override should be a `str` type name (e.g. long)'
                     if utils.have_pyspark:
@@ -409,4 +411,6 @@ def _is_spark_datatype(t: Type) -> bool:
     Returns:
         bool: a boolean indicating if the type is a PySpark DataType.
     """
+    if isinstance(t, StructType):
+        return True
     return inspect.isclass(t) and issubclass(t, DataType)
