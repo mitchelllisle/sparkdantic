@@ -179,7 +179,7 @@ def create_json_spark_schema(
             elif utils.have_pyspark and _is_spark_datatype(field_type):
                 spark_type = field_type.typeName()
             else:
-                spark_type = _from_python_type(field_type, info.metadata, safe_casting)
+                spark_type = _from_python_type(field_type, info.metadata, safe_casting, by_alias)
         except Exception as raised_error:
             raise TypeConversionError(
                 f'Error converting field `{name}` to PySpark type'
@@ -263,6 +263,7 @@ def _from_python_type(
     type_: Type,
     metadata: list[Any],
     safe_casting: bool = False,
+    by_alias: bool = True,
 ) -> Union[str, Dict[str, Any]]:
     """Converts a Python type to a corresponding PySpark data type.
 
@@ -270,6 +271,7 @@ def _from_python_type(
         type_ (Type): The python type to convert to a PySpark data type.
         metadata (list): The metadata for the field.
         safe_casting (bool): Indicates whether to use safe casting for integer types.
+        by_alias (bool): Indicates whether to use attribute aliases or not.
 
     Returns:
         Union[str, Dict[str, Any]]: The corresponding PySpark data type (dict for complex types).
@@ -277,7 +279,7 @@ def _from_python_type(
     py_type = _get_union_type_arg(type_)
 
     if _is_base_model(py_type):
-        return create_json_spark_schema(py_type, safe_casting)
+        return create_json_spark_schema(py_type, safe_casting, by_alias, 'validation')
 
     args = get_args(py_type)
     origin = get_origin(py_type)
@@ -287,7 +289,7 @@ def _from_python_type(
 
     # Convert complex types
     if origin is list:
-        element_type = _from_python_type(args[0], [])
+        element_type = _from_python_type(args[0], [], safe_casting, by_alias)
         contains_null = _is_optional(args[0])
         return {
             'type': 'array',
@@ -296,8 +298,8 @@ def _from_python_type(
         }
 
     if origin is dict:
-        key_type = _from_python_type(args[0], [])
-        value_type = _from_python_type(args[1], [])
+        key_type = _from_python_type(args[0], [], safe_casting, by_alias)
+        value_type = _from_python_type(args[1], [], safe_casting, by_alias)
         value_contains_null = _is_optional(args[1])
         return {
             'type': 'map',

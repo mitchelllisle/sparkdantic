@@ -1,6 +1,8 @@
+from typing import List
+
 import pytest
 from pydantic import AliasChoices, AliasPath, Field
-from pyspark.sql.types import IntegerType, StructField, StructType
+from pyspark.sql.types import ArrayType, IntegerType, StructField, StructType
 
 from sparkdantic import SparkModel
 
@@ -115,3 +117,59 @@ def test_invalid_json_schema_mode_raises_error():
         AliasModel.model_spark_schema(mode='invalid_mode')
 
     assert "`mode` must be one of ('validation', 'serialization')" in str(exc_info.value)
+
+
+def test_nested_model_alias_is_respected_when_by_alias_is_true():
+    class ChildModel(SparkModel):
+        a: int = Field(alias='a_alias')
+
+    class ParentModel(SparkModel):
+        b: List[ChildModel]
+
+    expected_schema = StructType(
+        [
+            StructField(
+                'b',
+                ArrayType(StructType([StructField('a_alias', IntegerType(), False)]), False),
+                False,
+            ),
+        ]
+    )
+    actual_schema = ParentModel.model_spark_schema(by_alias=True)
+    assert actual_schema == expected_schema
+
+
+def test_nested_model_alias_is_ignored_when_by_alias_is_false():
+    class ChildModel(SparkModel):
+        a: int = Field(alias='a_alias')
+
+    class ParentModel(SparkModel):
+        b: List[ChildModel]
+
+    expected_schema = StructType(
+        [
+            StructField(
+                'b', ArrayType(StructType([StructField('a', IntegerType(), False)]), False), False
+            ),
+        ]
+    )
+    actual_schema = ParentModel.model_spark_schema(by_alias=False)
+    assert actual_schema == expected_schema
+
+
+def test_nested_model_alias_is_ignored_in_list_when_by_alias_is_false():
+    class ChildModel(SparkModel):
+        a: int = Field(alias='a_alias')
+
+    class ParentModel(SparkModel):
+        b: List[ChildModel]
+
+    expected_schema = StructType(
+        [
+            StructField(
+                'b', ArrayType(StructType([StructField('a', IntegerType(), False)]), False), False
+            ),
+        ]
+    )
+    actual_schema = ParentModel.model_spark_schema(by_alias=False)
+    assert actual_schema == expected_schema
