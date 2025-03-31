@@ -1,9 +1,11 @@
 import inspect
 import sys
+from collections.abc import Iterable
 from copy import deepcopy
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 from enum import Enum
+from itertools import chain
 from types import MappingProxyType
 from typing import (
     TYPE_CHECKING,
@@ -20,7 +22,7 @@ from typing import (
 from uuid import UUID
 
 from pydantic import AliasChoices, AliasPath, BaseModel, ConfigDict, Field, SecretBytes, SecretStr
-from pydantic.fields import FieldInfo
+from pydantic.fields import ComputedFieldInfo, FieldInfo
 from pydantic.json_schema import JsonSchemaMode
 
 from sparkdantic import utils
@@ -44,6 +46,8 @@ else:
     EnumType = Type[Enum]  # pragma: no cover
 
 MixinType = Union[Type[int], Type[str]]
+
+FieldInfoUnion = Union[FieldInfo, ComputedFieldInfo]
 
 BaseModelOrSparkModel = Union[BaseModel, 'SparkModel']
 
@@ -148,13 +152,14 @@ def create_json_spark_schema(
         raise ValueError(f'`mode` must be one of {get_args(JsonSchemaMode)}')
 
     fields = []
-    for name, info in model.model_fields.items():
+    for name, info in _get_schema_items(model, mode):
         if by_alias:
             name = _get_field_alias(name, info, mode)
 
         field_info_extra = info.json_schema_extra or {}
         override = field_info_extra.get('spark_type')
-        field_type = _get_union_type_arg(info.annotation)
+        annotation_or_return_type = _get_annotation_or_return_type(info)
+        field_type = _get_union_type_arg(annotation_or_return_type)
 
         spark_type: Union[str, Dict[str, Any]]
 
@@ -179,14 +184,15 @@ def create_json_spark_schema(
             elif utils.have_pyspark and _is_spark_datatype(field_type):
                 spark_type = field_type.typeName()
             else:
-                spark_type = _from_python_type(field_type, info.metadata, safe_casting, by_alias)
+                metadata = _get_metadata(info)
+                spark_type = _from_python_type(field_type, metadata, safe_casting, by_alias)
         except Exception as raised_error:
             raise TypeConversionError(
                 f'Error converting field `{name}` to PySpark type'
             ) from raised_error
 
-        nullable = _is_optional(info.annotation)
-        struct_field = {
+        nullable = _is_optional(annotation_or_return_type)
+        struct_field: Dict[str, Any] = {
             'name': name,
             'type': spark_type,
             'nullable': nullable,
@@ -366,6 +372,24 @@ def _is_optional(t: Type) -> bool:
     return get_origin(t) in (Union, UnionType) and type(None) in get_args(t)
 
 
+def _get_schema_items(
+    model: BaseModelOrSparkModel, mode: JsonSchemaMode
+) -> Iterable[tuple[str, FieldInfoUnion]]:
+    """Returns the appropriate fields based on the schema mode.
+
+    Args:
+        model (BaseModelOrSparkModel): The model to get fields from.
+        mode (JsonSchemaMode): The schema generation mode.
+
+    Returns:
+        Iterable[tuple[str, FieldInfoUnion]]: Iterator of field items.
+    """
+    if mode == 'serialization':
+        return chain(model.model_fields.items(), model.model_computed_fields.items())
+
+    return chain(model.model_fields.items())
+
+
 def _get_union_type_arg(t: Type) -> Type:
     """Returns the inner type from a Union or the type itself if it's not a Union.
 
@@ -378,30 +402,73 @@ def _get_union_type_arg(t: Type) -> Type:
     return get_args(t)[0] if get_origin(t) in (Union, UnionType) else t
 
 
-def _get_field_alias(name: str, field_info: FieldInfo, mode: JsonSchemaMode = 'validation') -> str:
+def _get_annotation_or_return_type(field_info: FieldInfoUnion) -> Type:
+    """Returns the annotation or return type of a field.
+
+    Args:
+        field_info (FieldInfoUnion): The model field info from which to get the annotation or return type.
+            Can be either a regular FieldInfo or ComputedFieldInfo.
+
+    Returns:
+        Type: The annotation type for regular fields or return type for computed fields.
+    """
+    return field_info.annotation if isinstance(field_info, FieldInfo) else field_info.return_type
+
+
+def _get_field_alias(
+    name: str, field_info: FieldInfoUnion, mode: JsonSchemaMode = 'validation'
+) -> str:
     """Returns the field's alias (if defined) or name based on the mode.
-    When both alias and serialization_alias are used, serialization_alias takes precedence.
-    Similarly, when both alias and validation_alias are used, validation_alias takes precedence.
 
     Args:
         name (str): The model field name.
-        field_info (pydantic.FieldInfo): The model field info from which to get the alias or name.
-        mode (pydantic.json_schema.JsonSchemaMode): The mode in which to generate the schema.
+        field_info (FieldInfoUnion): The model field info from which to get the alias or name.
+        mode (JsonSchemaMode): The mode in which to generate the schema. Defaults to 'validation'.
 
     Returns:
-        str: The field alias or name.
+        str: The field alias if defined, otherwise the original field name.
     """
     if mode == 'serialization':
-        alias = field_info.serialization_alias or field_info.alias
+        alias = _get_alias_by_attr(field_info, 'serialization_alias')
     elif mode == 'validation':
-        validation_alias = field_info.validation_alias
-        if validation_alias is None or isinstance(validation_alias, AliasPath):
-            alias = field_info.alias
-        elif isinstance(validation_alias, AliasChoices):
-            alias = validation_alias.choices[0]
-        else:
-            alias = validation_alias
+        alias = _get_alias_by_attr(field_info, 'validation_alias')
     return alias or name
+
+
+def _get_alias_by_attr(field_info: FieldInfoUnion, attr: str) -> Optional[str]:
+    """Gets the alias value for a specific attribute from a field info object.
+
+    Args:
+        field_info (FieldInfoUnion): The field info object to extract the alias from.
+        attr (str): The attribute name to look for (e.g., 'serialization_alias', 'validation_alias').
+
+    Returns:
+        Optional[str]: The resolved alias string if found, None otherwise.
+    """
+    if hasattr(field_info, attr):
+        alias = getattr(field_info, attr)
+    else:
+        alias = getattr(field_info, 'alias', None)
+
+    if alias is None or isinstance(alias, AliasPath):
+        return getattr(field_info, 'alias')
+    elif isinstance(alias, AliasChoices):
+        return alias.choices[0]
+
+    return alias
+
+
+def _get_metadata(field_info: FieldInfoUnion) -> list[Any]:
+    """Returns the metadata of a field.
+
+    Args:
+        field_info (FieldInfoUnion): The model field info from which to get the metadata.
+            Can be either a regular FieldInfo or ComputedFieldInfo.
+
+    Returns:
+        list[Any]: The metadata list for regular fields, empty list for computed fields.
+    """
+    return field_info.metadata if isinstance(field_info, FieldInfo) else []
 
 
 def _is_spark_datatype(t: Type) -> bool:
