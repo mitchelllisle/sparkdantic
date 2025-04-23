@@ -161,6 +161,9 @@ def create_json_spark_schema(
         annotation_or_return_type = _get_annotation_or_return_type(info)
         field_type = _get_union_type_arg(annotation_or_return_type)
 
+        description = getattr(info, 'description', None)
+        comment = {'comment': description} if description else {}
+
         spark_type: Union[str, Dict[str, Any]]
 
         try:
@@ -196,7 +199,7 @@ def create_json_spark_schema(
             'name': name,
             'type': spark_type,
             'nullable': nullable,
-            'metadata': {},
+            'metadata': comment,
         }
         fields.append(struct_field)
     return {
