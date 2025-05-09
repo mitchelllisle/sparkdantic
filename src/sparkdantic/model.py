@@ -92,6 +92,7 @@ class SparkModel(BaseModel):
         safe_casting: bool = False,
         by_alias: bool = True,
         mode: JsonSchemaMode = 'validation',
+        exclude_fields: bool = False,
     ) -> 'StructType':
         """Generates a PySpark schema from the model fields. This operates similarly to
         `pydantic.BaseModel.model_json_schema()`.
@@ -100,11 +101,13 @@ class SparkModel(BaseModel):
             safe_casting (bool): Indicates whether to use safe casting for integer types.
             by_alias (bool): Indicates whether to use attribute aliases (`serialization_alias` or `alias`) or not.
             mode (pydantic.json_schema.JsonSchemaMode): The mode in which to generate the schema.
+            exclude_fields (bool): Indicates whether to exclude fields from the schema. Fields to be excluded should
+              be annotated with `Field(exclude=True)` field attribute
 
         Returns:
             pyspark.sql.types.StructType: The generated PySpark schema.
         """
-        return create_spark_schema(cls, safe_casting, by_alias, mode)
+        return create_spark_schema(cls, safe_casting, by_alias, mode, exclude_fields)
 
     @classmethod
     def model_json_spark_schema(
@@ -112,6 +115,7 @@ class SparkModel(BaseModel):
         safe_casting: bool = False,
         by_alias: bool = True,
         mode: JsonSchemaMode = 'validation',
+        exclude_fields: bool = False,
     ) -> Dict[str, Any]:
         """Generates a PySpark JSON compatible schema from the model fields. This operates similarly to
         `pydantic.BaseModel.model_json_schema()`.
@@ -120,11 +124,13 @@ class SparkModel(BaseModel):
             safe_casting (bool): Indicates whether to use safe casting for integer types.
             by_alias (bool): Indicates whether to use attribute aliases (`serialization_alias` or `alias`) or not.
             mode (pydantic.json_schema.JsonSchemaMode): The mode in which to generate the schema.
+            exclude_fields (bool): Indicates whether to exclude fields from the schema. Fields to be excluded should
+              be annotated with `Field(exclude=True)` field attribute
 
         Returns:
             Dict[str, Any]: The generated PySpark JSON schema.
         """
-        return create_json_spark_schema(cls, safe_casting, by_alias, mode)
+        return create_json_spark_schema(cls, safe_casting, by_alias, mode, exclude_fields)
 
 
 def create_json_spark_schema(
@@ -132,6 +138,7 @@ def create_json_spark_schema(
     safe_casting: bool = False,
     by_alias: bool = True,
     mode: JsonSchemaMode = 'validation',
+    exclude_fields: bool = False,
 ) -> Dict[str, Any]:
     """Generates a PySpark JSON compatible schema from the model fields. This operates similarly to
     `pydantic.BaseModel.model_json_schema()`.
@@ -141,6 +148,8 @@ def create_json_spark_schema(
         safe_casting (bool): Indicates whether to use safe casting for integer types.
         by_alias (bool): Indicates whether to use attribute aliases (`serialization_alias` or `alias`) or not.
         mode (pydantic.json_schema.JsonSchemaMode): The mode in which to generate the schema.
+        exclude_fields (bool): Indicates whether to exclude fields from the schema. Fields to be excluded should
+          be annotated with `Field(exclude=True)` field attribute
 
     Returns:
         Dict[str, Any]: The generated PySpark JSON schema
@@ -153,6 +162,8 @@ def create_json_spark_schema(
 
     fields = []
     for name, info in _get_schema_items(model, mode):
+        if exclude_fields and getattr(info, 'exclude', False):
+            continue
         if by_alias:
             name = _get_field_alias(name, info, mode)
 
@@ -168,7 +179,9 @@ def create_json_spark_schema(
 
         try:
             if _is_base_model(field_type):
-                spark_type = create_json_spark_schema(field_type, safe_casting, by_alias, mode)
+                spark_type = create_json_spark_schema(
+                    field_type, safe_casting, by_alias, mode, exclude_fields
+                )
             elif override is not None:
                 if isinstance(override, str):
                     spark_type = override
@@ -188,7 +201,9 @@ def create_json_spark_schema(
                 spark_type = field_type.typeName()
             else:
                 metadata = _get_metadata(info)
-                spark_type = _from_python_type(field_type, metadata, safe_casting, by_alias)
+                spark_type = _from_python_type(
+                    field_type, metadata, safe_casting, by_alias, exclude_fields
+                )
         except Exception as raised_error:
             raise TypeConversionError(
                 f'Error converting field `{name}` to PySpark type'
@@ -213,6 +228,7 @@ def create_spark_schema(
     safe_casting: bool = False,
     by_alias: bool = True,
     mode: JsonSchemaMode = 'validation',
+    exclude_fields: bool = False,
 ) -> 'StructType':
     """Generates a PySpark schema from the model fields.
 
@@ -221,12 +237,14 @@ def create_spark_schema(
         safe_casting (bool): Indicates whether to use safe casting for integer types.
         by_alias (bool): Indicates whether to use attribute aliases (`serialization_alias` or `alias`) or not.
         mode (pydantic.json_schema.JsonSchemaMode): The mode in which to generate the schema.
+        exclude_fields (bool): Indicates whether to exclude fields from the schema. Fields to be excluded should
+          be annotated with `Field(exclude=True)` field attribute
 
     Returns:
         pyspark.sql.types.StructType: The generated PySpark schema.
     """
     utils.require_pyspark()
-    json_schema = create_json_spark_schema(model, safe_casting, by_alias, mode)
+    json_schema = create_json_spark_schema(model, safe_casting, by_alias, mode, exclude_fields)
     return StructType.fromJson(json_schema)
 
 
@@ -273,6 +291,7 @@ def _from_python_type(
     metadata: list[Any],
     safe_casting: bool = False,
     by_alias: bool = True,
+    exclude_fields: bool = False,
 ) -> Union[str, Dict[str, Any]]:
     """Converts a Python type to a corresponding PySpark data type.
 
@@ -288,7 +307,9 @@ def _from_python_type(
     py_type = _get_union_type_arg(type_)
 
     if _is_base_model(py_type):
-        return create_json_spark_schema(py_type, safe_casting, by_alias, 'validation')
+        return create_json_spark_schema(
+            py_type, safe_casting, by_alias, 'validation', exclude_fields
+        )
 
     args = get_args(py_type)
     origin = get_origin(py_type)
@@ -298,7 +319,7 @@ def _from_python_type(
 
     # Convert complex types
     if origin is list:
-        element_type = _from_python_type(args[0], [], safe_casting, by_alias)
+        element_type = _from_python_type(args[0], [], safe_casting, by_alias, exclude_fields)
         contains_null = _is_optional(args[0])
         return {
             'type': 'array',
@@ -307,8 +328,8 @@ def _from_python_type(
         }
 
     if origin is dict:
-        key_type = _from_python_type(args[0], [], safe_casting, by_alias)
-        value_type = _from_python_type(args[1], [], safe_casting, by_alias)
+        key_type = _from_python_type(args[0], [], safe_casting, by_alias, exclude_fields)
+        value_type = _from_python_type(args[1], [], safe_casting, by_alias, exclude_fields)
         value_contains_null = _is_optional(args[1])
         return {
             'type': 'map',

@@ -67,6 +67,31 @@ class MyEnumModel(SparkModel):
     switch: Switch
 ```
 
+> ℹ️ A field can be excluded from the Spark schema using the pydantic's `exclude` Field attribute. This is
+> useful when e.g. the pydantic model has Spark incompatible fields. Note that `exclude` is a pydantic field 
+> attribute and not a sparkdantic feature. Setting it will exclude the field from any pydantic serialisation/deserialisation.
+
+```python
+from pydantic import Field
+from sparkdantic import SparkModel
+from typing import Any
+
+class MyModel(SparkModel):
+    name: str
+    age: int
+    arbitrary_data: Any = Field(exclude=True)
+
+```
+Running `MyModel.model_spark_schema(exclude_fields=True)` should return the following schema:
+
+```python
+StructType([
+    StructField('name', StringType(), False),
+    StructField('age', IntegerType(), False)
+])
+```
+
+Calling `model_spark_schema` without the option raises exception due to incompatible types.
 ### Generating a PySpark Schema
 
 #### Using `SparkModel`
