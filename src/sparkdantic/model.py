@@ -557,6 +557,42 @@ def _is_spark_datatype(t: Type) -> bool:
     return inspect.isclass(t) and issubclass(t, DataType)
 
 
+def _json_type_to_ddl(json_type: Union[str, Dict[str, Any]]) -> str:
+    """Maps JSON schema types to DDL types.
+
+    Args:
+        json_type (Union[str, Dict[str, Any]]): The JSON schema type to convert.
+
+    Returns:
+        str: The DDL type representation.
+    """
+    if isinstance(json_type, str):
+        # Map INTEGER to INT
+        if json_type.upper() == 'INTEGER':
+            return 'INT'
+        elif json_type.upper().startswith('DECIMAL'):
+            return json_type.upper().replace(' ', '')  # Remove whitespaces
+        else:
+            return json_type.upper()
+
+    if json_type['type'] == 'struct':
+        nested_fields = [
+            f"{field['name']}: {_json_type_to_ddl(field['type'])}" for field in json_type['fields']
+        ]
+        return f"STRUCT<{', '.join(nested_fields)}>"
+
+    elif json_type['type'] == 'array':
+        element_type = _json_type_to_ddl(json_type['elementType'])
+        return f'ARRAY<{element_type}>'
+
+    elif json_type['type'] == 'map':
+        key_type = _json_type_to_ddl(json_type['keyType'])
+        value_type = _json_type_to_ddl(json_type['valueType'])
+        return f'MAP<{key_type}, {value_type}>'
+    else:
+        raise TypeError(f"Unsupported JSON type: {json_type['type']}")
+
+
 def json_schema_to_ddl(json_schema: Dict[str, Any]) -> str:
     """Converts a JSON schema to a DDL string representation matching Spark's format.
 
@@ -566,42 +602,6 @@ def json_schema_to_ddl(json_schema: Dict[str, Any]) -> str:
     Returns:
         str: The DDL string representation of the schema.
     """
-
-    def _json_type_to_ddl(json_type: Union[str, Dict[str, Any]]) -> str:
-        if isinstance(json_type, str):
-            # Map INTEGER to INT
-            if json_type.upper() == 'INTEGER':
-                return 'INT'
-            elif json_type.upper().startswith('DECIMAL'):
-                return json_type.upper().replace(' ', '')  # Remove whitespaces
-            else:
-                return json_type.upper()
-
-        if json_type['type'] == 'struct':
-            nested_fields = [
-                f"{field['name']}: {_json_type_to_ddl(field['type'])}"
-                for field in json_type['fields']
-            ]
-            return f"STRUCT<{', '.join(nested_fields)}>"
-
-        elif json_type['type'] == 'array':
-            element_type = _json_type_to_ddl(json_type['elementType'])
-            return f'ARRAY<{element_type}>'
-
-        elif json_type['type'] == 'map':
-            key_type = _json_type_to_ddl(json_type['keyType'])
-            value_type = _json_type_to_ddl(json_type['valueType'])
-            return f'MAP<{key_type}, {value_type}>'
-
-        elif json_type['type'] == 'decimal':
-            precision = json_type.get('precision', 10)
-            scale = json_type.get('scale', 0)
-            print(f'Precision: {precision}, Scale: {scale}')
-            return f'DECIMAL({precision},{scale})'
-
-        else:
-            # Map INTEGER to INT
-            return 'INT' if json_type['type'].upper() == 'INTEGER' else json_type['type'].upper()
 
     field_ddls = []
     for field in json_schema['fields']:
