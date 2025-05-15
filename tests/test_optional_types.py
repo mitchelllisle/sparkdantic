@@ -3,6 +3,7 @@ from decimal import Decimal
 from enum import IntEnum
 from typing import Optional
 
+from pyspark.sql import SparkSession
 from pyspark.sql.types import (
     BinaryType,
     BooleanType,
@@ -20,7 +21,7 @@ from pyspark.sql.types import (
 from sparkdantic import SparkModel
 
 
-def test_optional_model_fields():
+def test_optional_model_fields(spark: SparkSession):
     class IntTestEnum(IntEnum):
         X = 1
         Y = 2
@@ -53,3 +54,7 @@ def test_optional_model_fields():
     )
     actual_schema = OptionalsModel.model_spark_schema()
     assert actual_schema == expected_schema
+
+    df = spark.createDataFrame([], schema=actual_schema)
+    ddl_schema = OptionalsModel.model_ddl_spark_schema()
+    assert ddl_schema == df._jdf.schema().toDDL()
