@@ -4,6 +4,7 @@ from typing import Annotated, Literal, Optional
 from uuid import UUID
 
 from pydantic import Field, SecretBytes, SecretStr
+from pyspark.sql import SparkSession
 from pyspark.sql.types import (
     BinaryType,
     BooleanType,
@@ -21,7 +22,7 @@ from pyspark.sql.types import (
 from sparkdantic import SparkModel
 
 
-def test_base_type_fields():
+def test_base_type_fields(spark: SparkSession):
     class BaseTypeModel(SparkModel):
         a: int
         b: float
@@ -59,6 +60,10 @@ def test_base_type_fields():
 
     actual_schema = BaseTypeModel.model_spark_schema(by_alias=True)
     assert actual_schema == expected_schema
+
+    df = spark.createDataFrame([], schema=actual_schema)
+    ddl_schema = BaseTypeModel.model_ddl_spark_schema()
+    assert ddl_schema == df._jdf.schema().toDDL()
 
 
 def test_literal_fields():

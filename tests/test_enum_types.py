@@ -1,13 +1,14 @@
 from enum import Enum, IntEnum
 
 import pytest
+from pyspark.sql import SparkSession
 from pyspark.sql.types import IntegerType, StringType, StructField, StructType
 
 from sparkdantic import SparkModel
 from sparkdantic.exceptions import TypeConversionError
 
 
-def test_supported_enum_fields():
+def test_supported_enum_fields(spark: SparkSession):
     class IntegerEnum(IntEnum):
         X = 1
         Y = 2
@@ -28,6 +29,10 @@ def test_supported_enum_fields():
     )
     actual_schema = EnumModel.model_spark_schema()
     assert actual_schema == expected_schema
+
+    df = spark.createDataFrame([], schema=actual_schema)
+    ddl_schema = EnumModel.model_ddl_spark_schema()
+    assert ddl_schema == df._jdf.schema().toDDL()
 
 
 def test_unsupported_enum_type_raises_error():
