@@ -2,6 +2,7 @@ from typing import List, Optional
 
 import pytest
 from pydantic import BaseModel
+from pyspark.sql import SparkSession
 from pyspark.sql.types import ArrayType, IntegerType, StringType, StructField, StructType
 
 from sparkdantic import SparkModel
@@ -10,7 +11,7 @@ SUPPORTED_SUB_CLASSES = [SparkModel, BaseModel]
 
 
 @pytest.mark.parametrize('sub_class', SUPPORTED_SUB_CLASSES)
-def test_nested_models(sub_class):
+def test_nested_models(sub_class, spark: SparkSession):
     class InnerModel(sub_class):
         name: str = 'test'
         age: int = 50
@@ -36,6 +37,10 @@ def test_nested_models(sub_class):
     )
     actual_schema = OuterModel.model_spark_schema()
     assert actual_schema == expected_schema
+
+    df = spark.createDataFrame([], schema=actual_schema)
+    ddl_schema = OuterModel.model_ddl_spark_schema()
+    assert ddl_schema == df._jdf.schema().toDDL()
 
 
 @pytest.mark.parametrize('sub_class', SUPPORTED_SUB_CLASSES)

@@ -4,6 +4,7 @@ from enum import IntEnum
 from typing import Dict, Union
 
 from pydantic import BaseModel
+from pyspark.sql import SparkSession
 from pyspark.sql.types import (
     BinaryType,
     BooleanType,
@@ -22,7 +23,7 @@ from pyspark.sql.types import (
 from sparkdantic import SparkModel
 
 
-def test_dict_fields():
+def test_dict_fields(spark: SparkSession):
     class IntegerEnum(IntEnum):
         X = 1
         Y = 2
@@ -73,3 +74,7 @@ def test_dict_fields():
 
     actual_schema = DictModel.model_spark_schema()
     assert actual_schema == expected_schema
+
+    df = spark.createDataFrame([], schema=actual_schema)
+    ddl_schema = DictModel.model_ddl_spark_schema()
+    assert ddl_schema == df._jdf.schema().toDDL()
