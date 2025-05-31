@@ -225,7 +225,7 @@ def create_json_spark_schema(
             else:
                 metadata = _get_metadata(info)
                 spark_type = _from_python_type(
-                    field_type, metadata, safe_casting, by_alias, exclude_fields
+                    field_type, metadata, safe_casting, by_alias, mode, exclude_fields
                 )
         except Exception as raised_error:
             raise TypeConversionError(
@@ -339,6 +339,7 @@ def _from_python_type(
     metadata: list[Any],
     safe_casting: bool = False,
     by_alias: bool = True,
+    mode: JsonSchemaMode = 'validation',
     exclude_fields: bool = False,
 ) -> Union[str, Dict[str, Any]]:
     """Converts a Python type to a corresponding PySpark data type.
@@ -355,9 +356,7 @@ def _from_python_type(
     py_type = _get_union_type_arg(type_)
 
     if _is_base_model(py_type):
-        return create_json_spark_schema(
-            py_type, safe_casting, by_alias, 'validation', exclude_fields
-        )
+        return create_json_spark_schema(py_type, safe_casting, by_alias, mode, exclude_fields)
 
     args = get_args(py_type)
     origin = get_origin(py_type)
@@ -367,7 +366,7 @@ def _from_python_type(
 
     # Convert complex types
     if origin is list:
-        element_type = _from_python_type(args[0], [], safe_casting, by_alias, exclude_fields)
+        element_type = _from_python_type(args[0], [], safe_casting, by_alias, mode, exclude_fields)
         contains_null = _is_optional(args[0])
         return {
             'type': 'array',
@@ -376,8 +375,8 @@ def _from_python_type(
         }
 
     if origin is dict:
-        key_type = _from_python_type(args[0], [], safe_casting, by_alias, exclude_fields)
-        value_type = _from_python_type(args[1], [], safe_casting, by_alias, exclude_fields)
+        key_type = _from_python_type(args[0], [], safe_casting, by_alias, mode, exclude_fields)
+        value_type = _from_python_type(args[1], [], safe_casting, by_alias, mode, exclude_fields)
         value_contains_null = _is_optional(args[1])
         return {
             'type': 'map',
