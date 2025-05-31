@@ -132,6 +132,29 @@ class SparkModel(BaseModel):
         """
         return create_json_spark_schema(cls, safe_casting, by_alias, mode, exclude_fields)
 
+    @classmethod
+    def model_ddl_spark_schema(
+        cls,
+        safe_casting: bool = False,
+        by_alias: bool = True,
+        mode: JsonSchemaMode = 'validation',
+        exclude_fields: bool = False,
+    ) -> str:
+        """Generates a Pyspark schema DDL String from the model fields.
+
+        Args:
+            model (pydantic.BaseModel or SparkModel): The pydantic model to generate the schema from.
+            safe_casting (bool): Indicates whether to use safe casting for integer types.
+            by_alias (bool): Indicates whether to use attribute aliases (`serialization_alias` or `alias`) or not.
+            mode (pydantic.json_schema.JsonSchemaMode): The mode in which to generate the schema.
+            exclude_fields (bool): Indicates whether to exclude fields from the schema. Fields to be excluded should
+              be annotated with `Field(exclude=True)` field attribute
+
+        Returns:
+            str: The generated DDL PySpark schema.
+        """
+        return create_ddl_spark_schema(cls, safe_casting, by_alias, mode, exclude_fields)
+
 
 def create_json_spark_schema(
     model: Type[BaseModelOrSparkModel],
@@ -221,6 +244,31 @@ def create_json_spark_schema(
         'type': 'struct',
         'fields': fields,
     }
+
+
+def create_ddl_spark_schema(
+    model: Type[BaseModelOrSparkModel],
+    safe_casting: bool = False,
+    by_alias: bool = True,
+    mode: JsonSchemaMode = 'validation',
+    exclude_fields: bool = False,
+) -> str:
+    """Generates a Pyspark schema DDL String from the model fields.
+
+    Args:
+        model (pydantic.BaseModel or SparkModel): The pydantic model to generate the schema from.
+        safe_casting (bool): Indicates whether to use safe casting for integer types.
+        by_alias (bool): Indicates whether to use attribute aliases (`serialization_alias` or `alias`) or not.
+        mode (pydantic.json_schema.JsonSchemaMode): The mode in which to generate the schema.
+        exclude_fields (bool): Indicates whether to exclude fields from the schema. Fields to be excluded should
+          be annotated with `Field(exclude=True)` field attribute
+
+    Returns:
+        str: The generated DDL PySpark schema.
+    """
+    utils.require_pyspark()
+    json_schema = create_json_spark_schema(model, safe_casting, by_alias, mode, exclude_fields)
+    return json_schema_to_ddl(json_schema)
 
 
 def create_spark_schema(
@@ -506,3 +554,59 @@ def _is_spark_datatype(t: Type) -> bool:
     if isinstance(t, StructType):
         return True
     return inspect.isclass(t) and issubclass(t, DataType)
+
+
+def _json_type_to_ddl(json_type: Union[str, Dict[str, Any]]) -> str:
+    """Maps JSON schema types to DDL types.
+
+    Args:
+        json_type (Union[str, Dict[str, Any]]): The JSON schema type to convert.
+
+    Returns:
+        str: The DDL type representation.
+    """
+    if isinstance(json_type, str):
+        # Map INTEGER to INT
+        if json_type.upper() == 'INTEGER':
+            return 'INT'
+        elif json_type.upper().startswith('DECIMAL'):
+            return json_type.upper().replace(' ', '')  # Remove whitespaces
+        else:
+            return json_type.upper()
+
+    if json_type['type'] == 'struct':
+        nested_fields = [
+            f"{field['name']}: {_json_type_to_ddl(field['type'])}" for field in json_type['fields']
+        ]
+        return f"STRUCT<{', '.join(nested_fields)}>"
+
+    elif json_type['type'] == 'array':
+        element_type = _json_type_to_ddl(json_type['elementType'])
+        return f'ARRAY<{element_type}>'
+
+    elif json_type['type'] == 'map':
+        key_type = _json_type_to_ddl(json_type['keyType'])
+        value_type = _json_type_to_ddl(json_type['valueType'])
+        return f'MAP<{key_type}, {value_type}>'
+    else:
+        raise TypeError(f"Unsupported JSON type: {json_type['type']}")
+
+
+def json_schema_to_ddl(json_schema: Dict[str, Any]) -> str:
+    """Converts a JSON schema to a DDL string representation matching Spark's format.
+
+    Args:
+        json_schema (Dict[str, Any]): The JSON schema to convert.
+
+    Returns:
+        str: The DDL string representation of the schema.
+    """
+
+    field_ddls = []
+    for field in json_schema['fields']:
+        field_ddl = f"{field['name']} {_json_type_to_ddl(field['type'])}"
+        if not field['nullable']:
+            field_ddl += ' NOT NULL'
+        field_ddls.append(field_ddl)
+
+    return ','.join(field_ddls)
