@@ -49,7 +49,8 @@ def test_no_pyspark_raises_import_error(no_pyspark):
         ('2.4.0', True),
         ('3.3.0', False),
         ('3.5.0', False),
-        ('4.0.0', True),
+        ('4.0.0', False),
+        ('4.1.0', True),
     ],
 )
 def test_require_pyspark_version_in_range(

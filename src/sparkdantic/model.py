@@ -27,6 +27,7 @@ from pydantic.json_schema import JsonSchemaMode
 
 from sparkdantic import utils
 from sparkdantic.exceptions import TypeConversionError
+from sparkdantic.utils import is_pyspark4
 
 if utils.have_pyspark:
     utils.require_pyspark_version_in_range()
@@ -575,9 +576,15 @@ def _json_type_to_ddl(json_type: Union[str, Dict[str, Any]]) -> str:
             return json_type.upper()
 
     if json_type['type'] == 'struct':
-        nested_fields = [
-            f"{field['name']}: {_json_type_to_ddl(field['type'])}" for field in json_type['fields']
-        ]
+        nested_fields = []
+        for field in json_type['fields']:
+            field_type = _json_type_to_ddl(field['type'])
+            if is_pyspark4():
+                nullable_str = '' if field.get('nullable', True) else ' NOT NULL'
+                nested_fields.append(f"{field['name']}: {field_type}{nullable_str}")
+            else:
+                nested_fields.append(f"{field['name']}: {field_type}")
+
         return f"STRUCT<{', '.join(nested_fields)}>"
 
     elif json_type['type'] == 'array':
