@@ -3,7 +3,7 @@ from decimal import Decimal
 from typing import Annotated, Literal, Optional
 from uuid import UUID
 
-from pydantic import Field, SecretBytes, SecretStr
+from pydantic import Field, HttpUrl, SecretBytes, SecretStr
 from pyspark.sql import SparkSession
 from pyspark.sql.types import (
     BinaryType,
@@ -38,6 +38,7 @@ def test_base_type_fields(spark: SparkSession):
         jj: SecretStr
         x: str = Field(alias='_x')
         uuid: UUID
+        url: HttpUrl
 
     expected_schema = StructType(
         [
@@ -55,6 +56,7 @@ def test_base_type_fields(spark: SparkSession):
             StructField('jj', StringType(), False),
             StructField('_x', StringType(), False),
             StructField('uuid', StringType(), False),
+            StructField('url', StringType(), False),
         ]
     )
 

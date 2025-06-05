@@ -21,7 +21,16 @@ from typing import (
 )
 from uuid import UUID
 
-from pydantic import AliasChoices, AliasPath, BaseModel, ConfigDict, Field, SecretBytes, SecretStr
+from pydantic import (
+    AliasChoices,
+    AliasPath,
+    BaseModel,
+    ConfigDict,
+    Field,
+    HttpUrl,
+    SecretBytes,
+    SecretStr,
+)
 from pydantic.fields import ComputedFieldInfo, FieldInfo
 from pydantic.json_schema import JsonSchemaMode
 
@@ -67,6 +76,7 @@ _type_mapping = MappingProxyType(
         Decimal: 'decimal',
         timedelta: 'interval day to second',
         UUID: 'string',
+        HttpUrl: 'string',
     }
 )
 
