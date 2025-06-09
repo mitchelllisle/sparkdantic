@@ -21,7 +21,16 @@ from typing import (
 )
 from uuid import UUID
 
-from pydantic import AliasChoices, AliasPath, BaseModel, ConfigDict, Field, SecretBytes, SecretStr
+from pydantic import (
+    AliasChoices,
+    AliasPath,
+    BaseModel,
+    ConfigDict,
+    Field,
+    HttpUrl,
+    SecretBytes,
+    SecretStr,
+)
 from pydantic.fields import ComputedFieldInfo, FieldInfo
 from pydantic.json_schema import JsonSchemaMode
 
@@ -68,6 +77,7 @@ _type_mapping = MappingProxyType(
         Decimal: 'decimal',
         timedelta: 'interval day to second',
         UUID: 'string',
+        HttpUrl: 'string',
     }
 )
 
@@ -579,7 +589,7 @@ def _json_type_to_ddl(json_type: Union[str, Dict[str, Any]]) -> str:
         nested_fields = []
         for field in json_type['fields']:
             field_type = _json_type_to_ddl(field['type'])
-            if is_pyspark4():
+            if is_pyspark4:
                 nullable_str = '' if field.get('nullable', True) else ' NOT NULL'
                 nested_fields.append(f"{field['name']}: {field_type}{nullable_str}")
             else:

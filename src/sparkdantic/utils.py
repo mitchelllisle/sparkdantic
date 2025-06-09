@@ -16,6 +16,8 @@ else:
     have_pyspark = True
     pyspark_import_error = None  # type: ignore
 
+is_pyspark4 = have_pyspark and pyspark.__version__.startswith('4.')
+
 
 def require_pyspark() -> None:
     """
@@ -25,13 +27,6 @@ def require_pyspark() -> None:
         raise SparkdanticImportError(
             'Pyspark is not installed. Install pyspark using `pip install sparkdantic[pyspark]`'
         ) from pyspark_import_error
-
-
-def is_pyspark4() -> bool:
-    """
-    Check if the installed PySpark version is 4.x.x
-    """
-    return have_pyspark and pyspark.__version__.startswith('4.')
 
 
 def require_pyspark_version_in_range() -> None:
