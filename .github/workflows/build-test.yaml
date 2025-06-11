@@ -7,7 +7,8 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: [3.9, '3.10', 3.11, 3.12]
+        python-version: [3.9, '3.10', 3.11, 3.12, 3.13]
+        pyspark-version: [3, 4]
     steps:
       - uses: actions/checkout@v2
       - name: Set up Python ${{ matrix.python-version }}
@@ -17,7 +18,7 @@ jobs:
       - name: Install Poetry
         run: pip install poetry
       - name: Install Tests
-        run: make install-all
+        run: make install-all-pyspark${{ matrix.pyspark-version }}
       - name: Run Tests
         run: make test-ci
       - name: Upload coverage reports to Codecov

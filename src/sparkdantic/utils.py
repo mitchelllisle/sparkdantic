@@ -4,7 +4,7 @@ from .exceptions import SparkdanticImportError
 
 MIN_PYSPARK_VERSION = '3.3.0'
 """Inclusive minimum version of PySpark required"""
-MAX_PYSPARK_VERSION = '4.0.0'
+MAX_PYSPARK_VERSION = '4.1.0'
 """Exclusive maximum version of PySpark supported"""
 
 try:
@@ -15,6 +15,8 @@ except ImportError as raised_error:
 else:
     have_pyspark = True
     pyspark_import_error = None  # type: ignore
+
+is_pyspark4 = have_pyspark and pyspark.__version__.startswith('4.')
 
 
 def require_pyspark() -> None:

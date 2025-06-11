@@ -36,7 +36,7 @@ pip install "sparkdantic[pyspark]"
 
 ### Supported PySpark versions
 
-`3.3.0` or higher, but not `4.0`
+PySpark version `3.3.0` or higher, up to but not including `4.1.0`
 
 ## Usage
 
