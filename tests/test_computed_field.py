@@ -109,3 +109,35 @@ def test_computed_field_with_spark_type():
     )
     actual_schema = create_spark_schema(ComputedWithSparkType, mode='serialization')
     assert actual_schema == expected_schema
+
+
+def test_computed_field_with_annotated_return_type():
+    class ComputedWithReturnSparkType(BaseModel):
+        @computed_field
+        @property
+        def d(self) -> Annotated[int, SparkField(spark_type=LongType)]:
+            return 4
+
+    expected_schema = StructType(
+        [
+            StructField('d', LongType(), False),
+        ]
+    )
+    actual_schema = create_spark_schema(ComputedWithReturnSparkType, mode='serialization')
+    assert actual_schema == expected_schema
+
+
+def test_computed_field_with_spark_type_over_annotated_return():
+    class ComputedWithSparkType(BaseModel):
+        @computed_field(json_schema_extra={"spark_type": LongType})
+        @property
+        def d(self) -> Annotated[int, SparkField(spark_type=StringType)]:
+            return 4
+
+    expected_schema = StructType(
+        [
+            StructField('d', LongType(), False),
+        ]
+    )
+    actual_schema = create_spark_schema(ComputedWithSparkType, mode='serialization')
+    assert actual_schema == expected_schema

@@ -202,6 +202,11 @@ def create_json_spark_schema(
             name = _get_field_alias(name, info, mode)
 
         field_info_extra = info.json_schema_extra or {}
+        # Computed fields could have json_schema_extra on the return type:
+        if (not field_info_extra) and isinstance(info, ComputedFieldInfo):
+            rt = info.return_type
+            return_field_info = FieldInfo.from_annotation(rt)
+            field_info_extra = return_field_info.json_schema_extra or {}
         override = field_info_extra.get('spark_type')
         annotation_or_return_type = _get_annotation_or_return_type(info)
         field_type = _get_union_type_arg(annotation_or_return_type)
