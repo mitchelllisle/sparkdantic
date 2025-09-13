@@ -62,32 +62,32 @@ MixinType = Union[Type[int], Type[str]]
 
 FieldInfoUnion = Union[FieldInfo, ComputedFieldInfo]
 
-BaseModelOrSparkModel = Union[BaseModel, "SparkModel"]
+BaseModelOrSparkModel = Union[BaseModel, 'SparkModel']
 
 _type_mapping = MappingProxyType(
     {
-        int: "integer",
-        float: "double",
-        str: "string",
-        SecretStr: "string",
-        bool: "boolean",
-        bytes: "binary",
-        SecretBytes: "binary",
-        list: "array",
-        dict: "map",
-        datetime: "timestamp",
-        date: "date",
-        Decimal: "decimal",
-        timedelta: "interval day to second",
-        UUID: "string",
-        HttpUrl: "string",
+        int: 'integer',
+        float: 'double',
+        str: 'string',
+        SecretStr: 'string',
+        bool: 'boolean',
+        bytes: 'binary',
+        SecretBytes: 'binary',
+        list: 'array',
+        dict: 'map',
+        datetime: 'timestamp',
+        date: 'date',
+        Decimal: 'decimal',
+        timedelta: 'interval day to second',
+        UUID: 'string',
+        HttpUrl: 'string',
     }
 )
 
 
-def SparkField(*args, spark_type: Optional[Union[Type["DataType"], str]] = None, **kwargs) -> Field:
+def SparkField(*args, spark_type: Optional[Union[Type['DataType'], str]] = None, **kwargs) -> Field:
     if spark_type is not None:
-        kwargs["spark_type"] = spark_type
+        kwargs['spark_type'] = spark_type
     return Field(*args, **kwargs)
 
 
@@ -105,9 +105,9 @@ class SparkModel(BaseModel):
         cls,
         safe_casting: bool = False,
         by_alias: bool = True,
-        mode: JsonSchemaMode = "validation",
+        mode: JsonSchemaMode = 'validation',
         exclude_fields: bool = False,
-    ) -> "StructType":
+    ) -> 'StructType':
         """Generates a PySpark schema from the model fields. This operates similarly to
         `pydantic.BaseModel.model_json_schema()`.
 
@@ -128,7 +128,7 @@ class SparkModel(BaseModel):
         cls,
         safe_casting: bool = False,
         by_alias: bool = True,
-        mode: JsonSchemaMode = "validation",
+        mode: JsonSchemaMode = 'validation',
         exclude_fields: bool = False,
     ) -> Dict[str, Any]:
         """Generates a PySpark JSON compatible schema from the model fields. This operates similarly to
@@ -151,7 +151,7 @@ class SparkModel(BaseModel):
         cls,
         safe_casting: bool = False,
         by_alias: bool = True,
-        mode: JsonSchemaMode = "validation",
+        mode: JsonSchemaMode = 'validation',
         exclude_fields: bool = False,
     ) -> str:
         """Generates a Pyspark schema DDL String from the model fields.
@@ -174,7 +174,7 @@ def create_json_spark_schema(
     model: Type[BaseModelOrSparkModel],
     safe_casting: bool = False,
     by_alias: bool = True,
-    mode: JsonSchemaMode = "validation",
+    mode: JsonSchemaMode = 'validation',
     exclude_fields: bool = False,
     _visited_models: Optional[Set[Type[BaseModel]]] = None,
 ) -> Dict[str, Any]:
@@ -194,24 +194,24 @@ def create_json_spark_schema(
         Dict[str, Any]: The generated PySpark JSON schema
     """
     if not _is_base_model(model):
-        raise TypeError("`model` must be of type `SparkModel` or `pydantic.BaseModel`")
+        raise TypeError('`model` must be of type `SparkModel` or `pydantic.BaseModel`')
 
     if mode not in get_args(JsonSchemaMode):
         raise ValueError(f"`mode` must be one of {get_args(JsonSchemaMode)}")
-    
+
     # Initialize visited models set if not provided
     if _visited_models is None:
         _visited_models = set()
-    
+
     # Check for circular references
     if model in _visited_models:
         # Return a placeholder for circular references
-        return {"type": "struct", "fields": []}
-    
+        return {'type': 'struct', 'fields': []}
+
     # Add current model to visited set
     _visited_models = _visited_models.copy()  # Make a copy to avoid modifying the original
     _visited_models.add(model)
-    
+
     # Resolve forward references in the model before processing
     if hasattr(model, 'model_rebuild'):
         try:
@@ -223,7 +223,7 @@ def create_json_spark_schema(
 
     fields = []
     for name, info in _get_schema_items(model, mode):
-        if exclude_fields and getattr(info, "exclude", False):
+        if exclude_fields and getattr(info, 'exclude', False):
             continue
         if by_alias:
             name = _get_field_alias(name, info, mode)
@@ -234,12 +234,12 @@ def create_json_spark_schema(
             rt = info.return_type
             return_field_info = FieldInfo.from_annotation(rt)
             field_info_extra = return_field_info.json_schema_extra or {}
-        override = field_info_extra.get("spark_type")
+        override = field_info_extra.get('spark_type')
         annotation_or_return_type = _get_annotation_or_return_type(info)
         field_type = _get_union_type_arg(annotation_or_return_type)
 
-        description = getattr(info, "description", None)
-        comment = {"comment": description} if description else {}
+        description = getattr(info, 'description', None)
+        comment = {'comment': description} if description else {}
 
         spark_type: Union[str, Dict[str, Any]]
 
@@ -253,12 +253,12 @@ def create_json_spark_schema(
                     spark_type = override
                 elif utils.have_pyspark and _is_spark_datatype(override):
                     spark_type = override.typeName()
-                    if spark_type == "struct":
+                    if spark_type == 'struct':
                         spark_type = override.jsonValue()
                 else:
-                    msg = "`spark_type` override should be a `str` type name (e.g. long)"
+                    msg = '`spark_type` override should be a `str` type name (e.g. long)'
                     if utils.have_pyspark:
-                        msg += " or `pyspark.sql.types.DataType` (e.g. LongType)"
+                        msg += ' or `pyspark.sql.types.DataType` (e.g. LongType)'
                     msg += f", but got {override}"
                     raise TypeError(msg)
             elif isinstance(field_type, str):
@@ -266,28 +266,40 @@ def create_json_spark_schema(
                 # Try to get it from the model's namespace
                 if hasattr(model, '__module__'):
                     import sys
+
                     module = sys.modules.get(model.__module__)
                     if module and hasattr(module, field_type):
                         resolved_type = getattr(module, field_type)
                         if _is_base_model(resolved_type):
                             spark_type = create_json_spark_schema(
-                                resolved_type, safe_casting, by_alias, mode, exclude_fields, _visited_models
+                                resolved_type,
+                                safe_casting,
+                                by_alias,
+                                mode,
+                                exclude_fields,
+                                _visited_models,
                             )
                         else:
                             # If it's not a BaseModel, treat as string type
-                            spark_type = "string"
+                            spark_type = 'string'
                     else:
                         # Could not resolve, default to string type
-                        spark_type = "string"
+                        spark_type = 'string'
                 else:
                     # No module info, default to string type
-                    spark_type = "string"
+                    spark_type = 'string'
             elif utils.have_pyspark and _is_spark_datatype(field_type):
                 spark_type = field_type.typeName()
             else:
                 metadata = _get_metadata(info)
                 spark_type = _from_python_type(
-                    field_type, metadata, safe_casting, by_alias, mode, exclude_fields, _visited_models
+                    field_type,
+                    metadata,
+                    safe_casting,
+                    by_alias,
+                    mode,
+                    exclude_fields,
+                    _visited_models,
                 )
         except Exception as raised_error:
             raise TypeConversionError(
@@ -296,15 +308,15 @@ def create_json_spark_schema(
 
         nullable = _is_optional(annotation_or_return_type)
         struct_field: Dict[str, Any] = {
-            "name": name,
-            "type": spark_type,
-            "nullable": nullable,
-            "metadata": comment,
+            'name': name,
+            'type': spark_type,
+            'nullable': nullable,
+            'metadata': comment,
         }
         fields.append(struct_field)
     return {
-        "type": "struct",
-        "fields": fields,
+        'type': 'struct',
+        'fields': fields,
     }
 
 
@@ -312,7 +324,7 @@ def create_ddl_spark_schema(
     model: Type[BaseModelOrSparkModel],
     safe_casting: bool = False,
     by_alias: bool = True,
-    mode: JsonSchemaMode = "validation",
+    mode: JsonSchemaMode = 'validation',
     exclude_fields: bool = False,
 ) -> str:
     """Generates a Pyspark schema DDL String from the model fields.
@@ -337,9 +349,9 @@ def create_spark_schema(
     model: Type[BaseModelOrSparkModel],
     safe_casting: bool = False,
     by_alias: bool = True,
-    mode: JsonSchemaMode = "validation",
+    mode: JsonSchemaMode = 'validation',
     exclude_fields: bool = False,
-) -> "StructType":
+) -> 'StructType':
     """Generates a PySpark schema from the model fields.
 
     Args:
@@ -401,7 +413,7 @@ def _from_python_type(
     metadata: list[Any],
     safe_casting: bool = False,
     by_alias: bool = True,
-    mode: JsonSchemaMode = "validation",
+    mode: JsonSchemaMode = 'validation',
     exclude_fields: bool = False,
     _visited_models: Optional[Set[Type[BaseModel]]] = None,
 ) -> Union[str, Dict[str, Any]]:
@@ -420,12 +432,14 @@ def _from_python_type(
     if isinstance(type_, ForwardRef):
         # For unresolved forward references, default to string type
         # This is safer than trying to resolve them which might fail
-        return "string"
-    
+        return 'string'
+
     py_type = _get_union_type_arg(type_)
 
     if _is_base_model(py_type):
-        return create_json_spark_schema(py_type, safe_casting, by_alias, mode, exclude_fields, _visited_models)
+        return create_json_spark_schema(
+            py_type, safe_casting, by_alias, mode, exclude_fields, _visited_models
+        )
 
     args = get_args(py_type)
     origin = get_origin(py_type)
@@ -435,23 +449,29 @@ def _from_python_type(
 
     # Convert complex types
     if origin is list:
-        element_type = _from_python_type(args[0], [], safe_casting, by_alias, mode, exclude_fields, _visited_models)
+        element_type = _from_python_type(
+            args[0], [], safe_casting, by_alias, mode, exclude_fields, _visited_models
+        )
         contains_null = _is_optional(args[0])
         return {
-            "type": "array",
-            "elementType": element_type,
-            "containsNull": contains_null,
+            'type': 'array',
+            'elementType': element_type,
+            'containsNull': contains_null,
         }
 
     if origin is dict:
-        key_type = _from_python_type(args[0], [], safe_casting, by_alias, mode, exclude_fields, _visited_models)
-        value_type = _from_python_type(args[1], [], safe_casting, by_alias, mode, exclude_fields, _visited_models)
+        key_type = _from_python_type(
+            args[0], [], safe_casting, by_alias, mode, exclude_fields, _visited_models
+        )
+        value_type = _from_python_type(
+            args[1], [], safe_casting, by_alias, mode, exclude_fields, _visited_models
+        )
         value_contains_null = _is_optional(args[1])
         return {
-            "type": "map",
-            "keyType": key_type,
-            "valueType": value_type,
-            "valueContainsNull": value_contains_null,
+            'type': 'map',
+            'keyType': key_type,
+            'valueType': value_type,
+            'valueContainsNull': value_contains_null,
         }
 
     if origin is Literal:
@@ -460,7 +480,7 @@ def _from_python_type(
         literal_arg_types = set(map(lambda a: type(a), args))
         if len(literal_arg_types) > 1:
             raise TypeError(
-                "Multiple types detected in `Literal` type. Only one consistent arg type is supported."
+                'Multiple types detected in `Literal` type. Only one consistent arg type is supported.'
             )
         py_type = literal_arg_types.pop()
 
@@ -474,13 +494,13 @@ def _from_python_type(
 
     spark_type = _get_spark_type(py_type)
 
-    if safe_casting is True and spark_type == "integer":
-        spark_type = "long"
+    if safe_casting is True and spark_type == 'integer':
+        spark_type = 'long'
 
-    if spark_type == "decimal":
+    if spark_type == 'decimal':
         meta = None if len(metadata) < 1 else deepcopy(metadata).pop()
-        max_digits = getattr(meta, "max_digits", 10)
-        decimal_places = getattr(meta, "decimal_places", 0)
+        max_digits = getattr(meta, 'max_digits', 10)
+        decimal_places = getattr(meta, 'decimal_places', 0)
         return f"decimal({max_digits}, {decimal_places})"
 
     return spark_type
@@ -525,7 +545,7 @@ def _get_schema_items(
     Returns:
         Iterable[tuple[str, FieldInfoUnion]]: Iterator of field items.
     """
-    if mode == "serialization":
+    if mode == 'serialization':
         return chain(model.model_fields.items(), model.model_computed_fields.items())
 
     return chain(model.model_fields.items())
@@ -557,7 +577,7 @@ def _get_annotation_or_return_type(field_info: FieldInfoUnion) -> Type:
 
 
 def _get_field_alias(
-    name: str, field_info: FieldInfoUnion, mode: JsonSchemaMode = "validation"
+    name: str, field_info: FieldInfoUnion, mode: JsonSchemaMode = 'validation'
 ) -> str:
     """Returns the field's alias (if defined) or name based on the mode.
 
@@ -569,10 +589,10 @@ def _get_field_alias(
     Returns:
         str: The field alias if defined, otherwise the original field name.
     """
-    if mode == "serialization":
-        alias = _get_alias_by_attr(field_info, "serialization_alias")
-    elif mode == "validation":
-        alias = _get_alias_by_attr(field_info, "validation_alias")
+    if mode == 'serialization':
+        alias = _get_alias_by_attr(field_info, 'serialization_alias')
+    elif mode == 'validation':
+        alias = _get_alias_by_attr(field_info, 'validation_alias')
     return alias or name
 
 
@@ -589,10 +609,10 @@ def _get_alias_by_attr(field_info: FieldInfoUnion, attr: str) -> Optional[str]:
     if hasattr(field_info, attr):
         alias = getattr(field_info, attr)
     else:
-        alias = getattr(field_info, "alias", None)
+        alias = getattr(field_info, 'alias', None)
 
     if alias is None or isinstance(alias, AliasPath):
-        return getattr(field_info, "alias")
+        return getattr(field_info, 'alias')
     elif isinstance(alias, AliasChoices):
         return alias.choices[0]
 
@@ -637,32 +657,32 @@ def _json_type_to_ddl(json_type: Union[str, Dict[str, Any]]) -> str:
     """
     if isinstance(json_type, str):
         # Map INTEGER to INT
-        if json_type.upper() == "INTEGER":
-            return "INT"
-        elif json_type.upper().startswith("DECIMAL"):
-            return json_type.upper().replace(" ", "")  # Remove whitespaces
+        if json_type.upper() == 'INTEGER':
+            return 'INT'
+        elif json_type.upper().startswith('DECIMAL'):
+            return json_type.upper().replace(' ', '')  # Remove whitespaces
         else:
             return json_type.upper()
 
-    if json_type["type"] == "struct":
+    if json_type['type'] == 'struct':
         nested_fields = []
-        for field in json_type["fields"]:
-            field_type = _json_type_to_ddl(field["type"])
+        for field in json_type['fields']:
+            field_type = _json_type_to_ddl(field['type'])
             if is_pyspark4:
-                nullable_str = "" if field.get("nullable", True) else " NOT NULL"
+                nullable_str = '' if field.get('nullable', True) else ' NOT NULL'
                 nested_fields.append(f"{field['name']}: {field_type}{nullable_str}")
             else:
                 nested_fields.append(f"{field['name']}: {field_type}")
 
         return f"STRUCT<{', '.join(nested_fields)}>"
 
-    elif json_type["type"] == "array":
-        element_type = _json_type_to_ddl(json_type["elementType"])
+    elif json_type['type'] == 'array':
+        element_type = _json_type_to_ddl(json_type['elementType'])
         return f"ARRAY<{element_type}>"
 
-    elif json_type["type"] == "map":
-        key_type = _json_type_to_ddl(json_type["keyType"])
-        value_type = _json_type_to_ddl(json_type["valueType"])
+    elif json_type['type'] == 'map':
+        key_type = _json_type_to_ddl(json_type['keyType'])
+        value_type = _json_type_to_ddl(json_type['valueType'])
         return f"MAP<{key_type}, {value_type}>"
     else:
         raise TypeError(f"Unsupported JSON type: {json_type['type']}")
@@ -679,10 +699,10 @@ def json_schema_to_ddl(json_schema: Dict[str, Any]) -> str:
     """
 
     field_ddls = []
-    for field in json_schema["fields"]:
+    for field in json_schema['fields']:
         field_ddl = f"{field['name']} {_json_type_to_ddl(field['type'])}"
-        if not field["nullable"]:
-            field_ddl += " NOT NULL"
+        if not field['nullable']:
+            field_ddl += ' NOT NULL'
         field_ddls.append(field_ddl)
 
-    return ",".join(field_ddls)
+    return ','.join(field_ddls)
