@@ -1,8 +1,15 @@
 from typing import Union
 
 import pytest
-from pydantic import UUID4, Field
-from pyspark.sql.types import IntegerType, LongType, StringType, StructField, StructType
+from pydantic import Field
+from pyspark.sql.types import (
+    IntegerType,
+    LongType,
+    StringType,
+    StructField,
+    StructType,
+    VarcharType,
+)
 
 from sparkdantic import SparkModel
 from sparkdantic.exceptions import TypeConversionError
@@ -57,11 +64,29 @@ def test_non_string_override_without_pyspark_raises_error():
     )
 
 
-def test_spark_type_instance_override_raises_error():
+def test_spark_type_instance_override():
+    """Test that DataType instances (not just classes) can be used as spark_type override."""
+
     class InstanceOverride(SparkModel):
         id: int = Field(spark_type=StringType())
 
-    with pytest.raises(TypeConversionError) as exc_info:
-        InstanceOverride.model_spark_schema()
+    expected_schema = StructType([StructField('id', StringType(), False)])
+    actual_schema = InstanceOverride.model_spark_schema()
+    assert actual_schema == expected_schema
 
-    assert 'Error converting field `id` to PySpark type' in str(exc_info.value)
+
+def test_parameterized_type_override():
+    """Test that parameterized DataType instances like VarcharType(36) preserve their parameters."""
+
+    class ParameterizedOverride(SparkModel):
+        uuid: str = Field(spark_type=VarcharType(36))
+        name: str = Field(spark_type=VarcharType(100))
+
+    expected_schema = StructType(
+        [
+            StructField('uuid', VarcharType(36), False),
+            StructField('name', VarcharType(100), False),
+        ]
+    )
+    actual_schema = ParameterizedOverride.model_spark_schema()
+    assert actual_schema == expected_schema

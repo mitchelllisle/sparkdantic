@@ -82,7 +82,11 @@ _type_mapping = MappingProxyType(
 )
 
 
-def SparkField(*args, spark_type: Optional[Union[Type['DataType'], str]] = None, **kwargs) -> Field:
+def SparkField(
+    *args,
+    spark_type: Optional[Union[Type['DataType'], 'DataType', str]] = None,
+    **kwargs,
+) -> Field:
     if spark_type is not None:
         kwargs['spark_type'] = spark_type
     return Field(*args, **kwargs)
@@ -225,9 +229,10 @@ def create_json_spark_schema(
                 if isinstance(override, str):
                     spark_type = override
                 elif utils.have_pyspark and _is_spark_datatype(override):
-                    spark_type = override.typeName()
-                    if spark_type == 'struct':
+                    if isinstance(override, DataType):
                         spark_type = override.jsonValue()
+                    else:
+                        spark_type = override.typeName()
                 else:
                     msg = '`spark_type` override should be a `str` type name (e.g. long)'
                     if utils.have_pyspark:
@@ -567,9 +572,7 @@ def _is_spark_datatype(t: Type) -> bool:
     Returns:
         bool: a boolean indicating if the type is a PySpark DataType.
     """
-    if isinstance(t, StructType):
-        return True
-    return inspect.isclass(t) and issubclass(t, DataType)
+    return (inspect.isclass(t) and issubclass(t, DataType)) or isinstance(t, DataType)
 
 
 def _json_type_to_ddl(json_type: Union[str, Dict[str, Any]]) -> str:
