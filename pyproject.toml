@@ -33,7 +33,7 @@ pep8-naming = ">=0.13.3,<0.16.0"
 [tool.poetry.group.docs.dependencies]
 mkdocs = "^1.4.2"
 mkdocs-material = "^9.1.4"
-mkdocs-gen-files = ">=0.4,<0.6"
+mkdocs-gen-files = ">=0.4,<0.7"
 mkdocs-literate-nav = "^0.6.0"
 mkdocstrings = {extras = ["python"], version = ">=0.20,<0.31"}
 mkautodoc = "^0.2.0"
