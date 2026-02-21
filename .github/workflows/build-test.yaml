@@ -7,8 +7,13 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: [3.9, '3.10', 3.11, 3.12, 3.13]
+        python-version: ['3.10', '3.11', '3.12', '3.13', '3.14']
         pyspark-version: [3, 4]
+        exclude:
+          # Python 3.14 is not compatible with PySpark 3.x due to C stack overflow issues
+          # PySpark 3.x uses an older pickling mechanism that doesn't work with Python 3.14's reduced stack size
+          - python-version: 3.14
+            pyspark-version: 3
     steps:
       - uses: actions/checkout@v2
       - name: Set up Python ${{ matrix.python-version }}
