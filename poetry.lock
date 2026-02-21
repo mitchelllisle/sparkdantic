@@ -1748,18 +1748,18 @@ diagrams = ["jinja2", "railroad-diagrams"]
 
 [[package]]
 name = "pyspark"
-version = "4.0.1"
+version = "4.0.2"
 description = "Apache Spark Python API"
 optional = true
 python-versions = ">=3.9"
 groups = ["main"]
 markers = "extra == \"pyspark\""
 files = [
-    {file = "pyspark-4.0.1.tar.gz", hash = "sha256:9d1f22d994f60369228397e3479003ffe2dd736ba79165003246ff7bd48e2c73"},
+    {file = "pyspark-4.0.2.tar.gz", hash = "sha256:938b4a1883383374d331ebfcb5d92debfa1891cf3d7a6d730520a1a2d23f1a90"},
 ]
 
 [package.dependencies]
-py4j = "0.10.9.9"
+py4j = ">=0.10.9.7,<0.10.9.10"
 
 [package.extras]
 connect = ["googleapis-common-protos (>=1.65.0)", "grpcio (>=1.67.0)", "grpcio-status (>=1.67.0)", "numpy (>=1.21)", "pandas (>=2.0.0)", "pyarrow (>=11.0.0)"]
@@ -2298,4 +2298,4 @@ pyspark = ["pyspark"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">3.9.1,<4.0.0"
-content-hash = "dde5e5b500260120667c6fd8006534df518761ed3217487f134488e3787a0abd"
+content-hash = "6fd2c0f437b8286dce3bdba3541316fce4c062e7d8e98b371cddb1fe00a3b309"
