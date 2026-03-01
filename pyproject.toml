@@ -12,7 +12,7 @@ pydantic = "^2.1.1"
 pyspark = { version = ">=3.3.0,<=4.0.2", optional = true }
 jmespath = "^1.0.1"
 pyparsing = "^3.1.1"
-packaging = ">=24.2,<26.0"
+packaging = ">=24.2,<27.0"
 jinja2 = ">=3.1.6"
 
 [tool.poetry.extras]
