@@ -4,7 +4,7 @@ from .exceptions import SparkdanticImportError
 
 MIN_PYSPARK_VERSION = '3.3.0'
 """Inclusive minimum version of PySpark required"""
-MAX_PYSPARK_VERSION = '4.1.0'
+MAX_PYSPARK_VERSION = '4.2.0'
 """Exclusive maximum version of PySpark supported"""
 
 try:

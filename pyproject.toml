@@ -4,12 +4,12 @@ version = "2.7.1"
 description = "A pydantic -> spark schema library"
 authors = ["Mitchell Lisle <m.lisle90@gmail.com>"]
 readme = "README.md"
-packages = [{include = "sparkdantic", from = "src"}]
+packages = [{ include = "sparkdantic", from = "src" }]
 
 [tool.poetry.dependencies]
 python = ">3.9.1,<4.0.0"
 pydantic = "^2.1.1"
-pyspark = { version = ">=3.3.0,<=4.0.2", optional = true }
+pyspark = { version = ">=3.3.0,<=4.2.0", optional = true }
 jmespath = "^1.0.1"
 pyparsing = "^3.1.1"
 packaging = ">=24.2,<27.0"
@@ -35,7 +35,7 @@ mkdocs = "^1.4.2"
 mkdocs-material = "^9.1.4"
 mkdocs-gen-files = ">=0.4,<0.7"
 mkdocs-literate-nav = "^0.6.0"
-mkdocstrings = {extras = ["python"], version = ">=0.20,<0.31"}
+mkdocstrings = { extras = ["python"], version = ">=0.20,<0.31" }
 mkautodoc = "^0.2.0"
 pymdown-extensions = "^10.0.1"
 
