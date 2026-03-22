@@ -3,7 +3,7 @@ from typing import Annotated, Optional
 from pydantic import BaseModel, computed_field
 from pyspark.sql.types import IntegerType, LongType, StringType, StructField, StructType
 
-from sparkdantic import create_spark_schema, SparkField
+from sparkdantic import SparkField, create_spark_schema
 
 
 class ComputedOnlyModel(BaseModel):
@@ -97,7 +97,7 @@ def test_computed_field_with_return_type():
 
 def test_computed_field_with_spark_type():
     class ComputedWithSparkType(BaseModel):
-        @computed_field(json_schema_extra={"spark_type": LongType})
+        @computed_field(json_schema_extra={'spark_type': LongType})
         @property
         def d(self) -> int:
             return 4
@@ -129,7 +129,7 @@ def test_computed_field_with_annotated_return_type():
 
 def test_computed_field_with_spark_type_over_annotated_return():
     class ComputedWithSparkType(BaseModel):
-        @computed_field(json_schema_extra={"spark_type": LongType})
+        @computed_field(json_schema_extra={'spark_type': LongType})
         @property
         def d(self) -> Annotated[int, SparkField(spark_type=StringType)]:
             return 4

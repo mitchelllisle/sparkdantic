@@ -78,7 +78,7 @@ install-all-pyspark3:
 
 install-all-pyspark4:
 	poetry install --with dev,test,docs
-	poetry run pip install pyspark==4.0.0
+	poetry run pip install pyspark==4.1.1
 
 install-dev-local: ## install all the stuff you need to develop locally
 	pip install --upgrade pip
