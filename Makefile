@@ -35,7 +35,7 @@ clean-test: ## remove test and coverage artifacts
 test: ## run tests (and coverage if configured in setup.cfg) with the default Python
 	@echo -----------------------------------------------------------------
 	@echo RUNNING TESTS...
-	poetry run pytest -v --cov=sparkdantic
+	uv run --group test --extra pyspark pytest -v --cov=sparkdantic
 	@echo ✅ Tests have passed! Nice work!
 	@echo -----------------------------------------------------------------
 
@@ -45,50 +45,47 @@ coverage: ## check code coverage quickly with the default Python
 	coverage report > COVERAGE.txt
 
 test-ci:
-	poetry run pytest --cov=sparkdantic --cov-report=json
+	uv run --group test --extra pyspark pytest --cov=sparkdantic --cov-report=json
 
 
 dist: clean ## builds source and wheel package
-	poetry build
+	uv build
 	ls -l dist
 
 
 install: clean ## install the package to the active Python's site-packages via pip
-	poetry install
+	uv sync
 
 
 install-e: clean ## install via pip in editable mode this see https://pip.pypa.io/en/stable/reference/pip_install/#editable-installs
-	pip install -e .
+	uv pip install -e .
 
 test-cov: test ## run tests locally and output coverage file
-	poetry run coverage report > COVERAGE.txt
+	uv run --group test --extra pyspark coverage report > COVERAGE.txt
 
 commit-cov:
 	git add COVERAGE.txt --force
 
 install-docs:
-	poetry install --only docs
+	uv sync --group docs
 
 install-tests:
-	poetry install --only test
+	uv sync --group test --extra pyspark
 
 install-all-pyspark3:
-	poetry install --with dev,test,docs
-	poetry run pip install pyspark==3.5.5
+	uv sync --group dev --group test --group docs --extra pyspark
+	uv run --group dev --group test --group docs --extra pyspark pip install pyspark==3.5.5
 
 install-all-pyspark4:
-	poetry install --with dev,test,docs
-	poetry run pip install pyspark==4.1.1
+	uv sync --group dev --group test --group docs --extra pyspark
+	uv run --group dev --group test --group docs --extra pyspark pip install pyspark==4.1.1
 
 install-dev-local: ## install all the stuff you need to develop locally
-	pip install --upgrade pip
-	pip install wheel
-	pip install -e .
-	poetry install --with dev,test,docs -E pyspark
+	uv sync --group dev --group test --group docs --extra pyspark
 	pre-commit install
 
 publish: dist ## publish the package to PyPI
-	poetry publish
+	uv publish
 
 run-infra:
 	docker-compose -f docker/dev/docker-compose.yaml up --remove-orphans -d
@@ -97,4 +94,4 @@ stop-infra:
 	docker-compose -f docker/dev/docker-compose.yaml down
 
 docs: ## generate Sphinx HTML documentation, including API docs
-	poetry run mkdocs build
+	uv run --group docs mkdocs build

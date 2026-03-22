@@ -176,7 +176,7 @@ json_spark_schema = create_json_spark_schema(EmployeeModel)
 ## Contributing
 Contributions welcome! If you would like to add a new feature / fix a bug feel free to raise a PR and tag me (`mitchelllisle`) as
 a reviewer. Please setup your environment locally to ensure all styling and development flow is as close to the standards set in
-this project as possible. To do this, the main thing you'll need is `poetry`. You should also run `make install-dev-local` which 
+this project as possible. To do this, the main thing you'll need is `uv`. You should also run `make install-dev-local` which 
 will install the `pre-commit-hooks` as well as install the project locally. PRs won't be accepted without sufficient tests and 
 we will be strict on maintaining a 100% test coverage.
 
