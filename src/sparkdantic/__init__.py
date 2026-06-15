@@ -1,4 +1,4 @@
-__version__ = '2.8.2'
+__version__ = '2.8.3'
 __author__ = 'Mitchell Lisle'
 __email__ = 'm.lisle90@gmail.com'
 
