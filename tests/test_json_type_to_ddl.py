@@ -55,5 +55,6 @@ def test_scalar_json_type_to_ddl(json_type, expected_ddl):
         ('geography(SRID:ANY, SPHERICAL)', 'GEOGRAPHY(ANY)'),
     ],
 )
-def test_geospatial_json_type_to_ddl(json_type, expected_ddl):
-    assert _json_type_to_ddl(json_type) == expected_ddl
+def test_geospatial_json_type_to_ddl(json_type, expected_ddl, spark):
+    actual_ddl = _json_type_to_ddl(json_type)
+    assert spark_types.DataType.fromDDL(actual_ddl) == spark_types.DataType.fromDDL(expected_ddl)
