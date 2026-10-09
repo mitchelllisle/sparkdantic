@@ -576,7 +576,11 @@ def _is_spark_datatype(t: Type) -> bool:
 
 
 def _json_type_to_ddl(json_type: Union[str, Dict[str, Any]]) -> str:
-    """Maps JSON schema types to DDL types.
+    """Converts Spark JSON schema types to SQL DDL types.
+
+    Scalar JSON and SQL representations can differ, notably for geospatial types.
+    Normalize scalar type names and aliases, then use PySpark for conversion.
+    Requires PySpark for scalar types, but no Spark session.
 
     Args:
         json_type (Union[str, Dict[str, Any]]): The JSON schema type to convert.
@@ -585,13 +589,16 @@ def _json_type_to_ddl(json_type: Union[str, Dict[str, Any]]) -> str:
         str: The DDL type representation.
     """
     if isinstance(json_type, str):
-        # Map INTEGER to INT
-        if json_type.upper() == 'INTEGER':
-            return 'INT'
-        elif json_type.upper().startswith('DECIMAL'):
-            return json_type.upper().replace(' ', '')  # Remove whitespaces
-        else:
-            return json_type.upper()
+        utils.require_pyspark()
+        type_name, separator, parameters = json_type.partition('(')
+        type_name = {
+            'int': 'integer',
+            'bigint': 'long',
+            'smallint': 'short',
+            'tinyint': 'byte',
+        }.get(type_name.lower(), type_name.lower())
+        data_type = StructType().add('', type_name + separator + parameters)[0].dataType
+        return data_type.simpleString().upper()
 
     if json_type['type'] == 'struct':
         nested_fields = []
