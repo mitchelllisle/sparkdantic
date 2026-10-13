@@ -51,7 +51,9 @@ def test_no_pyspark_raises_import_error(no_pyspark):
         ('3.5.0', False),
         ('4.0.0', False),
         ('4.1.0', False),
-        ('4.2.0', True),
+        ('4.2.0', False),
+        ('4.2.1', False),
+        ('4.3.0', True),
     ],
 )
 def test_require_pyspark_version_in_range(
@@ -63,9 +65,12 @@ def test_require_pyspark_version_in_range(
     monkeypatch.setattr(utils.pyspark, '__version__', version)
 
     if raises_error:
-        with pytest.raises(SparkdanticImportError):
+        with pytest.raises(SparkdanticImportError) as exc:
             utils.require_pyspark_version_in_range()
 
-        assert f'Pyspark version >={utils.MIN_PYSPARK_VERSION},<{utils.MAX_PYSPARK_VERSION} is required, but found {version}'
+        assert str(exc.value) == (
+            f'Pyspark version >={utils.MIN_PYSPARK_VERSION},<{utils.MAX_PYSPARK_VERSION} '
+            f'is required, but found {version}'
+        )
     else:
         utils.require_pyspark_version_in_range()

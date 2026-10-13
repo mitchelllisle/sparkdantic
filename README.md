@@ -36,7 +36,18 @@ pip install "sparkdantic[pyspark]"
 
 ### Supported PySpark versions
 
-PySpark version `3.3.0` or higher, up to but not including `4.2.0`
+PySpark version `3.3.0` or higher, up to but not including `4.3.0`, including the `4.2.x` series.
+
+### Release notes (unreleased)
+
+- Added support for PySpark `4.2.x`, preserving support for PySpark `3.3.0` and higher.
+- Aligned the optional dependency and runtime version bounds to `>=3.3.0,<4.3.0`.
+- Added PySpark `4.2.0` to CI alongside `3.5.5` and `4.1.1`.
+
+Spark `4.2` enables Arrow-based pandas conversion and Arrow-optimized Python UDFs and UDTFs by default.
+Arrow-dependent workflows require PyArrow `18.0.0` or higher. Review the
+[PySpark upgrade guide](https://spark.apache.org/docs/4.2.0/api/python/migration_guide/pyspark_upgrade.html#upgrading-from-pyspark-4-1-to-4-2)
+for application-level migration considerations; these changes do not require changes to ordinary SparkDantic model definitions.
 
 ## Usage
 

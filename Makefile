@@ -1,6 +1,8 @@
 .PHONY: clean clean-test clean-pyc clean-build docs help test test-cov
 .DEFAULT_GOAL := help
 
+PYSPARK_VERSION ?= 4.2.0
+
 clean: ## remove all build, test, coverage and Python artifacts
 	@echo -----------------------------------------------------------------
 	@echo CLEANING UP ...
@@ -45,7 +47,7 @@ coverage: ## check code coverage quickly with the default Python
 	coverage report > COVERAGE.txt
 
 test-ci:
-	uv run --group test --extra pyspark pytest --cov=sparkdantic --cov-report=json
+	uv run --no-sync --group test --extra pyspark pytest --cov=sparkdantic --cov-report=json
 
 
 dist: clean ## builds source and wheel package
@@ -72,13 +74,15 @@ install-docs:
 install-tests:
 	uv sync --group test --extra pyspark
 
-install-all-pyspark3:
+install-all-pyspark:
 	uv sync --group dev --group test --group docs --extra pyspark
-	uv run --group dev --group test --group docs --extra pyspark pip install pyspark==3.5.5
+	uv pip install "pyspark==$(PYSPARK_VERSION)"
+
+install-all-pyspark3:
+	$(MAKE) install-all-pyspark PYSPARK_VERSION=3.5.5
 
 install-all-pyspark4:
-	uv sync --group dev --group test --group docs --extra pyspark
-	uv run --group dev --group test --group docs --extra pyspark pip install pyspark==4.1.1
+	$(MAKE) install-all-pyspark
 
 install-dev-local: ## install all the stuff you need to develop locally
 	uv sync --group dev --group test --group docs --extra pyspark
