@@ -3,7 +3,7 @@
 [![codecov](https://codecov.io/gh/mitchelllisle/sparkdantic/graph/badge.svg?token=O6PPQX4FEX)](https://codecov.io/gh/mitchelllisle/sparkdantic)
 [![PyPI version](https://badge.fury.io/py/sparkdantic.svg)](https://badge.fury.io/py/sparkdantic)
 
-> 1️⃣ version: 2.8.4
+> 1️⃣ version: 2.9.0
 
 > ✍️ author: Mitchell Lisle
 
@@ -38,11 +38,12 @@ pip install "sparkdantic[pyspark]"
 
 PySpark version `3.3.0` or higher, up to but not including `4.3.0`, including the `4.2.x` series.
 
-### Release notes (unreleased)
+### Release notes (2.9.0)
 
 - Added support for PySpark `4.2.x`, preserving support for PySpark `3.3.0` and higher.
 - Aligned the optional dependency and runtime version bounds to `>=3.3.0,<4.3.0`.
 - Added PySpark `4.2.0` to CI alongside `3.5.5` and `4.1.1`.
+- Fixed JSON-to-DDL type conversion for Spark 4.1 geospatial types (`GEOMETRY`, `GEOGRAPHY`), whose JSON schema representation differs from their DDL form. Conversion now delegates to PySpark's own type parser, making it more resilient to future type additions.
 
 Spark `4.2` enables Arrow-based pandas conversion and Arrow-optimized Python UDFs and UDTFs by default.
 Arrow-dependent workflows require PyArrow `18.0.0` or higher. Review the
