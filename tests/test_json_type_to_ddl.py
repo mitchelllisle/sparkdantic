@@ -1,6 +1,8 @@
 import pytest
+from pydantic import Field
 from pyspark.sql import types as spark_types
 
+from sparkdantic import SparkField, SparkModel
 from sparkdantic.model import _json_type_to_ddl
 
 # WGS 84: geographic coordinates used by GPS.
@@ -67,3 +69,11 @@ def test_geospatial_json_type_to_ddl(json_type, expected_ddl, spark):
     assert spark_types.DataType.fromDDL(actual_ddl) == spark_types.DataType.fromDDL(
         expected_ddl
     )  # spark session needed for DataType.fromDDL
+
+
+@pytest.mark.skipif(not hasattr(spark_types, 'GeometryType'), reason='Requires PySpark 4.1+')
+def test_model_geospatial_ddl():
+    class GeoModel(SparkModel):
+        location: str = SparkField(spark_type=spark_types.GeometryType(WGS84_SRID))
+
+    assert GeoModel.model_ddl_spark_schema() == f'location GEOMETRY({WGS84_SRID}) NOT NULL'
