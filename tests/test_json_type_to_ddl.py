@@ -3,7 +3,12 @@ from pyspark.sql import types as spark_types
 
 from sparkdantic.model import _json_type_to_ddl
 
+# WGS 84: geographic coordinates used by GPS.
+# https://epsg.org/crs_4326/WGS-84.html
 WGS84_SRID = 4326
+
+# Web Mercator: projected coordinates used by most web map tiles.
+# https://epsg.org/crs_3857/WGS-84-Pseudo-Mercator.html
 WEB_MERCATOR_SRID = 3857
 
 
@@ -56,5 +61,9 @@ def test_scalar_json_type_to_ddl(json_type, expected_ddl):
     ],
 )
 def test_geospatial_json_type_to_ddl(json_type, expected_ddl, spark):
-    actual_ddl = _json_type_to_ddl(json_type)
-    assert spark_types.DataType.fromDDL(actual_ddl) == spark_types.DataType.fromDDL(expected_ddl)
+    actual_ddl = _json_type_to_ddl(
+        json_type
+    )  # Convert the JSON type to DDL - no spark session needed
+    assert spark_types.DataType.fromDDL(actual_ddl) == spark_types.DataType.fromDDL(
+        expected_ddl
+    )  # spark session needed for DataType.fromDDL
